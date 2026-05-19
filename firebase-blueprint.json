@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Commercial product in inventory",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the product" },
+        "barcode": { "type": "string", "description": "Barcode or SKU" },
+        "price": { "type": "number", "description": "Unit price" },
+        "stock": { "type": "number", "description": "Current quantity in stock" },
+        "minStock": { "type": "number", "description": "Minimum stock before alert" },
+        "category": { "type": "string", "description": "Product category" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "barcode", "price", "stock"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Completed sales transaction",
+      "type": "object",
+      "properties": {
+        "items": { 
+          "type": "array",
+          "description": "List of items sold"
+        },
+        "total": { "type": "number", "description": "Total sale amount" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card", "pix"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["items", "total", "paymentMethod", "timestamp"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Inventory products"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Sales history"
+    }
+  }
+}

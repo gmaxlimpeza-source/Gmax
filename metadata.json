@@ -1,0 +1,6 @@
+{
+  "name": "Gmax PDV & Gestão",
+  "description": "Sistema de Ponto de Venda (PDV) e Gestão de Estoque em tempo real para estabelecimentos comerciais e gastronômicos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
