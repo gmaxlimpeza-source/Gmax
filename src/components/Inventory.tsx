@@ -92,38 +92,38 @@ export function Inventory() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-blue-50/50 border-b border-blue-100">
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40">Produto</th>
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40">Barcode</th>
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40">Categoria</th>
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40 text-right">Preço</th>
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40 text-center">Estoque</th>
-                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-blue-900/40 text-right px-8">Ações</th>
+              <tr className="bg-blue-50 border-b border-blue-150">
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800">Produto</th>
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800">Barcode</th>
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800">Categoria</th>
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800 text-right">Preço</th>
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800 text-center">Estoque</th>
+                <th className="px-6 py-5 font-black text-[10px] uppercase tracking-widest text-gray-800 text-right px-8">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50">
+            <tbody className="divide-y divide-blue-100">
               {filteredProducts.map((p) => (
-                <tr key={p.id} className="group hover:bg-blue-50/20 transition-colors">
+                <tr key={p.id} className="group hover:bg-blue-50/40 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="font-black text-blue-900 uppercase text-xs">{p.name}</p>
+                    <p className="font-black text-gray-950 uppercase text-xs">{p.name}</p>
                     {p.stock <= p.minStock && (
-                      <span className="flex items-center gap-1 text-[9px] font-black text-red-500 uppercase mt-1 tracking-widest">
+                      <span className="flex items-center gap-1 text-[9px] font-black text-red-600 uppercase mt-1 tracking-widest">
                         <AlertTriangle className="w-3 h-3" /> Estoque Crítico
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-mono text-[10px] text-blue-300 font-bold tracking-tighter">{p.barcode}</td>
+                  <td className="px-6 py-4 font-mono text-[10px] text-gray-800 font-black tracking-tight">{p.barcode}</td>
                   <td className="px-6 py-4">
-                    <span className="text-[10px] font-black bg-blue-50 px-3 py-1.5 rounded-full uppercase tracking-widest text-blue-600">
+                    <span className="text-[10px] font-black bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full uppercase tracking-widest text-blue-900">
                       {p.category || 'Geral'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-black text-right text-xs text-blue-900">R$ {p.price.toFixed(2)}</td>
+                  <td className="px-6 py-4 font-black text-right text-xs text-gray-900">R$ {p.price.toFixed(2)}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`text-sm font-black ${p.stock <= p.minStock ? 'text-red-500' : 'text-blue-900'}`}>
+                    <span className={`text-sm font-black ${p.stock <= p.minStock ? 'text-red-600' : 'text-gray-900'}`}>
                       {p.stock}
                     </span>
-                    <span className="text-[10px] text-blue-200 font-black ml-1 uppercase">un</span>
+                    <span className="text-[10px] text-gray-600 font-black ml-1 uppercase">un</span>
                   </td>
                   <td className="px-6 py-4 text-right px-8">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

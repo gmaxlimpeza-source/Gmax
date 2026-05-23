@@ -58,8 +58,12 @@ export function useSales() {
   const voidSale = async (sale: Sale) => {
     const batch = writeBatch(db);
 
-    // Delete sale
-    batch.delete(doc(db, 'sales', sale.id));
+    // Update sale status to voided instead of deleting it
+    const saleRef = doc(db, 'sales', sale.id);
+    batch.update(saleRef, {
+      isVoided: true,
+      voidedAt: Timestamp.now()
+    });
 
     // Restore stock
     sale.items.forEach((item) => {

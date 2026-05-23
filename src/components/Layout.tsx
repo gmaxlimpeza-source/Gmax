@@ -29,15 +29,10 @@ export function Layout({ children, currentView, setView, user, onSignOut }: Layo
   return (
     <div className="flex h-screen bg-blue-50/20 text-gray-900 font-sans">
       {/* Compact Sidebar */}
-      <aside className="w-20 hover:w-64 bg-[#0a192f] border-r border-blue-500/10 flex flex-col overflow-hidden transition-all duration-300 group/sidebar z-20 shadow-[10px_0_40px_rgba(0,0,100,0.15)]">
-        <div className="p-6 border-b border-white/5 flex justify-center group-hover/sidebar:justify-start">
-          <div className="flex items-center gap-0 group-hover/sidebar:gap-3 transition-all duration-300">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/40 flex-shrink-0">
-              <ShoppingCart className="w-5 h-5 text-white" />
-            </div>
-            <h2 className="text-xl font-black tracking-tighter text-white whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-all duration-300 italic max-w-0 group-hover/sidebar:max-w-xs overflow-hidden">
-              G<span className="text-blue-400">MAX</span>
-            </h2>
+      <aside className="w-20 bg-[#0a192f] border-r border-blue-500/10 flex flex-col justify-between overflow-hidden z-20 shadow-[10px_0_40px_rgba(0,0,100,0.15)] shrink-0">
+        <div className="p-4 border-b border-white/5 flex justify-center">
+          <div className="w-12 h-12 flex items-center justify-center flex-shrink-0" title="GMAX PDV">
+            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[44px] h-[44px] object-contain hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
           </div>
         </div>
         
@@ -46,18 +41,16 @@ export function Layout({ children, currentView, setView, user, onSignOut }: Layo
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`w-full flex items-center justify-center group-hover/sidebar:justify-start gap-0 group-hover/sidebar:gap-4 px-4 py-4 rounded-2xl transition-all duration-300 relative group/item ${
+              title={item.label}
+              className={`w-full flex items-center justify-center py-4 rounded-2xl transition-all duration-300 relative group/item ${
                 currentView === item.id 
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40' 
                   : 'hover:bg-blue-500/10 text-blue-300 hover:text-white'
               }`}
             >
-              <item.icon className={`w-6 h-6 flex-shrink-0 ${currentView === item.id ? 'text-white' : 'group-hover/item:text-white'}`} />
-              <span className="font-black text-[10px] uppercase tracking-[0.2em] opacity-0 group-hover/sidebar:opacity-100 transition-all duration-300 whitespace-nowrap max-w-0 group-hover/sidebar:max-w-xs overflow-hidden">
-                {item.label}
-              </span>
+              <item.icon className="w-6 h-6 flex-shrink-0 text-inherit" />
               {currentView === item.id && (
-                <div className="absolute left-0 w-1 h-6 bg-white rounded-r-full" />
+                <div className="absolute left-0 w-1.5 h-6 bg-white rounded-r-full" />
               )}
             </button>
           ))}
@@ -66,10 +59,10 @@ export function Layout({ children, currentView, setView, user, onSignOut }: Layo
         <div className="p-4 border-t border-white/5">
           <button 
             onClick={onSignOut}
-            className="w-full flex items-center justify-center group-hover/sidebar:justify-start gap-0 group-hover/sidebar:gap-4 px-4 py-4 rounded-2xl text-blue-400/40 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300 group/logout"
+            title="Sair"
+            className="w-full flex items-center justify-center py-4 rounded-2xl text-blue-400/40 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"
           >
             <LogOut className="w-6 h-6 flex-shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover/sidebar:opacity-100 transition-all duration-300 whitespace-nowrap text-inherit max-w-0 group-hover/sidebar:max-w-xs overflow-hidden">Sair</span>
           </button>
         </div>
       </aside>

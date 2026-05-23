@@ -80,8 +80,8 @@ export default function App() {
           className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl space-y-8 border border-white/20"
         >
           <div className="space-y-3">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-blue-500/40">
-              <LogIn className="w-8 h-8 text-white" />
+            <div className="w-24 h-24 mx-auto flex items-center justify-center">
+              <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
             </div>
             <h1 className="text-4xl font-black tracking-tight text-gray-900 uppercase italic">GMAX <span className="text-blue-600">POS</span></h1>
             <p className="text-blue-900/40 text-xs font-black uppercase tracking-[0.2em]">Gestão Comercial de Alta Performance</p>

@@ -27,10 +27,20 @@ export function Dashboard() {
   const { sales } = useSales();
 
   const stats = useMemo(() => {
+    const parseTS = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      if (typeof timestamp === 'string') return new Date(timestamp);
+      if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+      return new Date();
+    };
+
     const now = new Date();
     const todaySales = sales.filter(s => {
-      const saleDate = s.timestamp.toDate();
-      return saleDate.getDate() === now.getDate() &&
+      const saleDate = parseTS(s.timestamp);
+      return !s.isVoided &&
+             saleDate.getDate() === now.getDate() &&
              saleDate.getMonth() === now.getMonth() &&
              saleDate.getFullYear() === now.getFullYear();
     });
@@ -43,8 +53,8 @@ export function Dashboard() {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       const daySales = sales.filter(s => {
-        const sd = s.timestamp.toDate();
-        return sd.getDate() === d.getDate() && sd.getMonth() === d.getMonth();
+        const sd = parseTS(s.timestamp);
+        return !s.isVoided && sd.getDate() === d.getDate() && sd.getMonth() === d.getMonth();
       });
       return {
         date: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
@@ -93,8 +103,8 @@ export function Dashboard() {
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight">Desempenho Comercial</h3>
-              <p className="text-xs text-blue-900/40 font-black uppercase tracking-wider">Últimos 7 dias de operação</p>
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Desempenho Comercial</h3>
+              <p className="text-xs text-gray-800 font-black uppercase tracking-wider">Últimos 7 dias de operação</p>
             </div>
             <div className="p-2 bg-blue-50 rounded-lg">
               <Calendar className="w-5 h-5 text-blue-500" />
@@ -147,7 +157,7 @@ export function Dashboard() {
 
         {/* Recent Sales Feed */}
         <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm h-full">
-          <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight mb-6">Últimas Vendas</h3>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-6">Últimas Vendas</h3>
           <div className="space-y-4">
             {stats.recentSales.map((sale, i) => (
               <motion.div 
@@ -155,24 +165,38 @@ export function Dashboard() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={sale.id} 
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all cursor-default"
+                className={`flex items-center justify-between p-3 rounded-xl transition-all cursor-default border ${
+                  sale.isVoided 
+                    ? 'bg-red-50/40 border-red-100 opacity-75 hover:bg-red-50/60' 
+                    : 'hover:bg-blue-50 border-transparent hover:border-blue-100'
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${
-                    sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
-                    sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
-                    'bg-orange-50 text-orange-600'
+                    sale.isVoided
+                      ? 'bg-red-100/60 text-red-600'
+                      : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
+                        sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
+                        'bg-orange-50 text-orange-600'
                   }`}>
                     <Package className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-blue-900">R$ {sale.total.toFixed(2)}</p>
-                    <p className="text-[10px] text-blue-300 font-black uppercase tracking-tighter">
-                      {sale.paymentMethod} • {sale.timestamp.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    <p className={`text-sm font-black ${sale.isVoided ? 'text-red-600 line-through' : 'text-gray-900'}`}>
+                      R$ {sale.total.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-gray-700 font-bold uppercase tracking-tighter">
+                      {sale.paymentMethod} {sale.isVoided && <span className="text-red-600 font-black">• ESTORNADA</span>} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-blue-200" />
+                {sale.isVoided ? (
+                  <span className="text-[8px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-wider">
+                    Estorno
+                  </span>
+                ) : (
+                  <ArrowUpRight className="w-4 h-4 text-blue-200" />
+                )}
               </motion.div>
             ))}
             {stats.recentSales.length === 0 && (
@@ -213,8 +237,8 @@ function StatCard({ title, value, icon: Icon, color, trend }: any) {
           </span>
         </div>
         <div>
-          <h4 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{title}</h4>
-          <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
+          <h4 className="text-gray-700 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{title}</h4>
+          <p className="text-3xl font-black text-gray-950 tracking-tight">{value}</p>
         </div>
       </div>
     </div>

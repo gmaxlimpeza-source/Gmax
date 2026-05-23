@@ -30,9 +30,18 @@ export function Reports() {
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
+    const parseTS = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      if (typeof timestamp === 'string') return new Date(timestamp);
+      if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+      return new Date();
+    };
+
     const now = new Date();
     return sales.filter(s => {
-      const d = s.timestamp.toDate();
+      const d = parseTS(s.timestamp);
       if (filter === 'today') {
         return d.getDate() === now.getDate() && 
                d.getMonth() === now.getMonth() && 
@@ -46,18 +55,31 @@ export function Reports() {
     });
   }, [sales, filter]);
 
+  const activeSales = useMemo(() => {
+    return filteredSales.filter(s => !s.isVoided);
+  }, [filteredSales]);
+
   const chartData = useMemo(() => {
+    const parseTS = (timestamp: any): Date => {
+      if (!timestamp) return new Date();
+      if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+      if (timestamp instanceof Date) return timestamp;
+      if (typeof timestamp === 'string') return new Date(timestamp);
+      if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+      return new Date();
+    };
+
     const data: Record<string, number> = {};
-    filteredSales.forEach(s => {
-      const day = s.timestamp.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    activeSales.forEach(s => {
+      const day = parseTS(s.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       data[day] = (data[day] || 0) + s.total;
     });
     return Object.entries(data).map(([name, total]) => ({ name, total }));
-  }, [filteredSales]);
+  }, [activeSales]);
 
   const pieData = useMemo(() => {
     const data: Record<PaymentMethod, number> = { cash: 0, card: 0, pix: 0 };
-    filteredSales.forEach(s => {
+    activeSales.forEach(s => {
       data[s.paymentMethod] += s.total;
     });
     return [
@@ -65,7 +87,7 @@ export function Reports() {
       { name: 'Cartão', value: data.card, color: '#3B82F6' },
       { name: 'PIX', value: data.pix, color: '#14B8A6' }
     ].filter(d => d.value > 0);
-  }, [filteredSales]);
+  }, [activeSales]);
 
   const handleVoid = async () => {
     if (saleToVoid) {
@@ -105,7 +127,7 @@ export function Reports() {
         <div className="bg-white p-8 rounded-2xl border border-blue-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight">Faturamento Periódico</h3>
-            <span className="text-[10px] uppercase font-black text-blue-300">Total: R$ {filteredSales.reduce((a, s) => a + s.total, 0).toFixed(2)}</span>
+            <span className="text-[10px] uppercase font-black text-blue-300">Total: R$ {activeSales.reduce((a, s) => a + s.total, 0).toFixed(2)}</span>
           </div>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -157,47 +179,72 @@ export function Reports() {
 
       {/* Detailed History */}
       <div className="bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
-        <div className="p-6 bg-blue-50/50 border-b border-blue-100 flex items-center gap-3">
+        <div className="p-6 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-lg">
             <History className="w-5 h-5 text-white" />
           </div>
-          <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-900">Histórico Detalhado</h3>
+          <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-gray-900">Histórico Detalhado</h3>
         </div>
         <div className="divide-y divide-blue-50">
           {filteredSales.map((sale) => (
-            <div key={sale.id} className="p-6 hover:bg-blue-50/20 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div key={sale.id} className={`p-6 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+              sale.isVoided 
+                ? 'bg-red-50/10 hover:bg-red-50/20 opacity-75' 
+                : 'hover:bg-blue-50/20'
+            }`}>
               <div className="flex items-start gap-4">
                 <div className={`p-4 rounded-2xl ${
-                  sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
-                  sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
-                  'bg-orange-50 text-orange-600'
+                  sale.isVoided
+                    ? 'bg-red-50 text-red-600'
+                    : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
+                      sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
+                      'bg-orange-50 text-orange-600'
                 }`}>
                   <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
-                    <p className="font-black text-xl text-blue-900 tracking-tight">R$ {sale.total.toFixed(2)}</p>
-                    <span className="text-[9px] font-black bg-white px-2 py-1 rounded-full border border-blue-100 uppercase tracking-widest text-blue-400">{sale.paymentMethod}</span>
+                    <p className={`font-black text-xl tracking-tight ${sale.isVoided ? 'text-red-600 line-through' : 'text-gray-950'}`}>
+                      R$ {sale.total.toFixed(2)}
+                    </p>
+                    <span className="text-[9px] font-black bg-blue-50 px-2 py-1 rounded-full border border-blue-250 uppercase tracking-widest text-blue-900">
+                      {sale.paymentMethod}
+                    </span>
+                    {sale.isVoided && (
+                      <span className="text-[9px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-widest">
+                        Estornada
+                      </span>
+                    )}
                   </div>
-                  <p className="text-[10px] text-blue-200 font-black uppercase tracking-widest mt-1">
-                    ID: {sale.id.slice(0, 8)} • {sale.timestamp.toDate().toLocaleString('pt-BR')}
+                  <p className="text-[10px] text-gray-800 font-extrabold uppercase tracking-widest mt-1">
+                    ID: {sale.id.slice(0, 8)} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleString('pt-BR')}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {sale.items.map((item, idx) => (
-                      <span key={idx} className="text-[9px] font-black border border-blue-50 bg-blue-50/30 px-3 py-1 rounded-full text-blue-400 uppercase">
+                      <span key={idx} className={`text-[9px] font-extrabold border px-3 py-1 rounded-full uppercase ${
+                        sale.isVoided
+                          ? 'border-red-100 bg-red-50/40 text-red-900/60'
+                          : 'border-blue-200 bg-blue-100/60 text-blue-950'
+                      }`}>
                         {item.quantity}x {item.name}
                       </span>
                     ))}
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => setSaleToVoid(sale)}
-                className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-600 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100"
-              >
-                <ArrowLeftRight className="w-4 h-4" />
-                Estornar Venda
-              </button>
+              {sale.isVoided ? (
+                <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none">
+                  Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setSaleToVoid(sale)}
+                  className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-600 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Estornar Venda
+                </button>
+              )}
             </div>
           ))}
           {filteredSales.length === 0 && (
@@ -234,7 +281,7 @@ export function Reports() {
               <div className="space-y-2">
                 <h3 className="text-xl font-black text-blue-900 uppercase">Confirmar Estorno?</h3>
                 <p className="text-xs text-blue-300 uppercase font-black tracking-widest">
-                  A venda de <span className="text-blue-900">R$ {saleToVoid.total.toFixed(2)}</span> será excluída e os itens retornarão ao estoque.
+                  A venda de <span className="text-blue-900">R$ {saleToVoid.total.toFixed(2)}</span> será estornada e os itens retornarão ao estoque.
                 </p>
               </div>
               <div className="flex gap-4 pt-4">

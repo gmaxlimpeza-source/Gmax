@@ -26,4 +26,6 @@ export interface Sale {
   total: number;
   paymentMethod: PaymentMethod;
   timestamp: Timestamp;
+  isVoided?: boolean;
+  voidedAt?: Timestamp;
 }

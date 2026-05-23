@@ -308,7 +308,7 @@ export function POS({ user }: { user?: any }) {
       <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-950 text-white h-14 flex items-center justify-between shadow-xl border-b-2 border-blue-400 shrink-0 z-30 px-6">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5">
-            <Sparkles className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[32px] h-[32px] object-contain" referrerPolicy="no-referrer" />
             <h1 className="text-xl font-black tracking-tighter uppercase italic text-white">
               GMAX <span className="text-blue-400">PDV</span>
             </h1>
