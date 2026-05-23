@@ -10,6 +10,10 @@ export default defineConfig(({mode}) => {
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
+    build: {
+      target: 'es2020',
+      cssTarget: 'chrome109',
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -14,10 +14,11 @@ interface LayoutProps {
   children: ReactNode;
   currentView: string;
   setView: (view: any) => void;
-  user: User;
+  user: any;
+  onSignOut: () => void;
 }
 
-export function Layout({ children, currentView, setView, user }: LayoutProps) {
+export function Layout({ children, currentView, setView, user, onSignOut }: LayoutProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pos', label: 'PDV / Vendas', icon: ShoppingCart },
@@ -64,7 +65,7 @@ export function Layout({ children, currentView, setView, user }: LayoutProps) {
 
         <div className="p-4 border-t border-white/5">
           <button 
-            onClick={() => auth.signOut()}
+            onClick={onSignOut}
             className="w-full flex items-center justify-center group-hover/sidebar:justify-start gap-0 group-hover/sidebar:gap-4 px-4 py-4 rounded-2xl text-blue-400/40 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300 group/logout"
           >
             <LogOut className="w-6 h-6 flex-shrink-0" />

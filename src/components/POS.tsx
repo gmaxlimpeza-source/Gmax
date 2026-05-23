@@ -48,7 +48,7 @@ const playScannerBeep = () => {
   }
 };
 
-export function POS() {
+export function POS({ user }: { user?: any }) {
   const { products } = useInventory();
   const { createSale } = useSales();
   
@@ -317,7 +317,7 @@ export function POS() {
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest leading-none">Terminal PDV-01</span>
-              <span className="text-[9px] text-white/60 font-bold uppercase mt-0.5">Operador: {auth.currentUser?.displayName || 'Admin'}</span>
+              <span className="text-[9px] text-white/60 font-bold uppercase mt-0.5">Operador: {user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </div>

@@ -10,13 +10,35 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Loader2 } from 'lucide-react';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'dashboard' | 'pos' | 'inventory' | 'reports'>('pos');
 
   useEffect(() => {
+    // Restore last known user session to prevent login screen flicker during loading/offline moments
+    const savedUser = localStorage.getItem('gmax_last_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('gmax_last_user');
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+      if (u) {
+        const userData = {
+          uid: u.uid,
+          displayName: u.displayName,
+          email: u.email,
+          photoURL: u.photoURL,
+        };
+        localStorage.setItem('gmax_last_user', JSON.stringify(userData));
+        setUser(userData);
+      } else {
+        localStorage.removeItem('gmax_last_user');
+        setUser(null);
+      }
       setLoading(false);
     });
     return unsubscribe;
@@ -28,6 +50,16 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('Login error:', error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      localStorage.removeItem('gmax_last_user');
+      await auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Signout error:', error);
     }
   };
 
@@ -54,9 +86,10 @@ export default function App() {
             <h1 className="text-4xl font-black tracking-tight text-gray-900 uppercase italic">GMAX <span className="text-blue-600">POS</span></h1>
             <p className="text-blue-900/40 text-xs font-black uppercase tracking-[0.2em]">Gestão Comercial de Alta Performance</p>
           </div>
+          
           <button
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white py-5 px-6 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all font-black uppercase tracking-widest active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-3 bg-blue-600 text-white py-5 px-6 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all font-black uppercase tracking-widest text-xs active:scale-[0.98]"
           >
             Acessar com Google
           </button>
@@ -68,7 +101,7 @@ export default function App() {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard />;
-      case 'pos': return <POS />;
+      case 'pos': return <POS user={user} />;
       case 'inventory': return <Inventory />;
       case 'reports': return <Reports />;
       default: return <Dashboard />;
@@ -76,7 +109,7 @@ export default function App() {
   };
 
   return (
-    <Layout currentView={currentView} setView={setCurrentView} user={user}>
+    <Layout currentView={currentView} setView={setCurrentView} user={user} onSignOut={handleSignOut}>
       <AnimatePresence mode="wait">
         <motion.div
           key={currentView}
