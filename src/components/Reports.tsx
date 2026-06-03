@@ -25,9 +25,10 @@ import { Sale, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function Reports() {
-  const { sales, voidSale, loading, settleSale } = useSales();
+  const { sales, voidSale, loading, settleSale, deleteSale } = useSales();
   const [filter, setFilter] = useState<'today' | 'month' | 'all'>('today');
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
     const parseTS = (timestamp: any): Date => {
@@ -243,19 +244,28 @@ export function Reports() {
                     </div>
                   </div>
                 </div>
-                {sale.isVoided ? (
-                  <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none self-start md:self-auto">
-                    Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setSaleToVoid(sale)}
-                    className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-650 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100 self-start md:self-auto"
+                <div className="flex items-center gap-2 self-start md:self-auto">
+                  {sale.isVoided ? (
+                    <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none">
+                      Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setSaleToVoid(sale)}
+                      className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-650 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100"
+                    >
+                      <ArrowLeftRight className="w-4 h-4" />
+                      Estornar Venda
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSaleToDelete(sale)}
+                    className="flex items-center gap-2 text-[10px] font-black text-gray-400 hover:text-red-650 transition-all uppercase tracking-widest bg-gray-50 hover:bg-red-50 p-2.5 rounded-xl border border-transparent hover:border-red-100 shrink-0"
+                    title="Excluir Registro de Venda"
                   >
-                    <ArrowLeftRight className="w-4 h-4" />
-                    Estornar Venda
+                    <Trash2 className="w-4 h-4" />
                   </button>
-                )}
+                </div>
               </div>
 
               {/* Outstanding payment details Settlement section */}
@@ -345,6 +355,60 @@ export function Reports() {
                   className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-500/20"
                 >
                   Estornar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {saleToDelete && (
+          <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 text-left">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSaleToDelete(null)}
+              className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-red-500"
+            >
+              <div className="mx-auto w-15 h-15 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-blue-900 uppercase">Excluir Registro?</h3>
+                <p className="text-xs text-blue-300 uppercase font-black tracking-widest leading-relaxed">
+                  Esta ação excluirá permanentemente o registro de venda de <span className="text-blue-900">R$ {saleToDelete.total.toFixed(2)}</span> do histórico.
+                  {!saleToDelete.isVoided && (
+                    <span className="block mt-2 text-amber-600 font-extrabold bg-amber-50 rounded-xl p-2.5 border border-amber-200 normal-case tracking-normal">
+                      ⚠️ Nota: O estoque dos produtos comprados será restaurado.
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button 
+                  onClick={() => setSaleToDelete(null)}
+                  className="flex-1 py-4 bg-blue-50 text-blue-400 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-100 transition-all text-xs"
+                >
+                  Manter
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await deleteSale(saleToDelete);
+                      setSaleToDelete(null);
+                    } catch (err) {
+                      console.error("Erro ao excluir venda:", err);
+                    }
+                  }}
+                  className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-500/20 text-xs"
+                >
+                  Excluir
                 </button>
               </div>
             </motion.div>

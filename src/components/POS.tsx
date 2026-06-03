@@ -51,7 +51,7 @@ const playScannerBeep = () => {
 
 export function POS({ user }: { user?: any }) {
   const { products } = useInventory();
-  const { createSale } = useSales();
+  const { sales, createSale } = useSales();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<SaleItem[]>([]);
@@ -406,16 +406,16 @@ export function POS({ user }: { user?: any }) {
   return (
     <div className="flex flex-col h-full font-sans select-none overflow-hidden">
       {/* Header - Status Bar (Moved to top as requested) */}
-      <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-950 text-white h-14 flex items-center justify-between shadow-xl border-b-2 border-blue-400 shrink-0 z-30 px-6">
-        <div className="flex items-center gap-6">
+      <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-950 text-white h-14 flex items-center justify-between shadow-xl border-b-2 border-blue-400 shrink-0 z-30 px-4 md:px-6">
+        <div className="flex items-center gap-3 md:gap-6">
           <div className="flex items-center gap-2.5">
             <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[32px] h-[32px] object-contain rounded-lg shadow-sm" referrerPolicy="no-referrer" />
-            <h1 className="text-xl font-black tracking-tighter uppercase italic text-white">
+            <h1 className="text-lg md:text-xl font-black tracking-tighter uppercase italic text-white">
               GMAX <span className="text-blue-400">PDV</span>
             </h1>
           </div>
-          <div className="h-6 w-[1px] bg-white/20" />
-          <div className="flex items-center gap-3">
+          <div className="hidden sm:block h-6 w-[1px] bg-white/20" />
+          <div className="hidden sm:flex items-center gap-3">
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest leading-none">Terminal PDV-01</span>
               <span className="text-[9px] text-white/60 font-bold uppercase mt-0.5">Operador: {user?.displayName || 'Admin'}</span>
@@ -423,7 +423,7 @@ export function POS({ user }: { user?: any }) {
           </div>
         </div>
         
-        <div className="absolute left-1/2 -translate-x-1/2 text-center">
+        <div className="hidden lg:block absolute left-1/2 -translate-x-1/2 text-center">
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-black italic tracking-[0.4em] text-blue-200 animate-pulse uppercase">
               {cart.length > 0 ? "Atendimento em Curso" : "Aguardando Venda"}
@@ -432,8 +432,8 @@ export function POS({ user }: { user?: any }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="hidden md:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
             <svg 
               className="w-4 h-4 text-emerald-400 fill-current" 
               viewBox="0 0 24 24" 
@@ -446,11 +446,11 @@ export function POS({ user }: { user?: any }) {
             </span>
           </div>
 
-          <div className="h-6 w-[1px] bg-white/20" />
+          <div className="hidden md:block h-6 w-[1px] bg-white/20" />
 
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">Caixa Aberto</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] font-black text-green-400 uppercase tracking-widest leading-none">Caixa Aberto</span>
+            <div className="flex items-center gap-1.5 mt-1">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
               <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest">Servidor Online</span>
             </div>
@@ -459,8 +459,8 @@ export function POS({ user }: { user?: any }) {
       </header>
 
       {/* Sub-header: Hotkeys */}
-      <div className="bg-white border-b border-gray-100 p-2 shrink-0 z-10 shadow-sm">
-        <div className="max-w-[1600px] mx-auto grid grid-cols-5 md:grid-cols-10 gap-2">
+      <div className="bg-white border-b border-gray-100 p-2 shrink-0 z-10 shadow-sm overflow-x-auto scrollbar-none">
+        <div className="min-w-max md:min-w-0 max-w-[1600px] mx-auto flex md:grid md:grid-cols-10 gap-2 px-2">
           <Hotkey label="AJUDA" keyLabel="F1" color="blue" icon={<AlertCircle className="w-4 h-4" />} onClick={() => setIsHelpOpen(true)} />
           <Hotkey label="CAIXA" keyLabel="F2" color="indigo" icon={<HardDrive className="w-4 h-4" />} onClick={() => showToast('Terminal PDV-001 Ativo', 'success')} />
           <Hotkey label="BUSCA" keyLabel="F3" color="sky" icon={<SearchIcon className="w-4 h-4" />} onClick={() => searchInputRef.current?.focus()} />
@@ -495,17 +495,17 @@ export function POS({ user }: { user?: any }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden p-4 lg:p-5">
-        <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto lg:overflow-hidden p-3 md:p-5">
+        <div className="max-w-[1600px] mx-auto h-auto lg:h-full flex flex-col gap-4">
           <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
         {/* Left Column: Input and Details */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col min-h-0">
+        <div className="col-span-12 lg:col-span-4 flex flex-col shrink-0 lg:min-h-0">
           <div className="flex-1 bg-white p-6 rounded-3xl border border-blue-100 shadow-sm flex flex-col justify-between overflow-hidden">
             <div className="flex-1 flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="relative">
                   <label className="text-[9px] font-black text-blue-600/50 uppercase tracking-[0.2em] block mb-1 px-1">
-                    Scanner / Pesquisa [F12]
+                    Scanner / Pesquisa [F12 / F3]
                   </label>
                   <div className="relative group">
                     <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-400 group-focus-within:text-blue-600 transition-colors" />
@@ -513,8 +513,8 @@ export function POS({ user }: { user?: any }) {
                       ref={searchInputRef}
                       type="text"
                       autoFocus
-                      placeholder="Código de barras"
-                      className="w-full pl-14 pr-4 py-4 bg-blue-50/30 rounded-2xl border-2 border-transparent focus:border-blue-600 focus:bg-white transition-all outline-none text-xl font-black"
+                      placeholder="Código de barras ou nome"
+                      className="w-full pl-14 pr-4 py-4 bg-blue-50/30 rounded-2xl border-2 border-transparent focus:border-blue-600 focus:bg-white transition-all outline-none text-lg md:text-xl font-black"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onKeyDown={(e) => {
@@ -536,10 +536,10 @@ export function POS({ user }: { user?: any }) {
                     <AnimatePresence>
                       {searchTerm && filteredProducts.length > 0 && (
                         <motion.div 
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-blue-600 rounded-2xl shadow-3xl z-50 overflow-hidden"
+                           initial={{ opacity: 0, scale: 0.95 }}
+                           animate={{ opacity: 1, scale: 1 }}
+                           exit={{ opacity: 0 }}
+                           className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-blue-600 rounded-2xl shadow-3xl z-[100] max-h-60 overflow-y-auto"
                         >
                           {filteredProducts.map(p => (
                             <button
@@ -547,11 +547,11 @@ export function POS({ user }: { user?: any }) {
                               onClick={() => addToCart(p)}
                               className="w-full p-4 flex items-center justify-between hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
                             >
-                              <div className="text-left">
-                                <p className="font-black text-xs uppercase text-gray-900">{p.name}</p>
+                              <div className="text-left pr-2">
+                                <p className="font-black text-xs uppercase text-gray-900 line-clamp-1">{p.name}</p>
                                 <p className="text-[9px] text-gray-400 font-mono tracking-tighter">{p.barcode}</p>
                               </div>
-                              <span className="font-black text-sm text-blue-600">R$ {p.price.toFixed(2)}</span>
+                              <span className="font-black text-sm text-blue-600 shrink-0">R$ {p.price.toFixed(2)}</span>
                             </button>
                           ))}
                         </motion.div>
@@ -561,10 +561,10 @@ export function POS({ user }: { user?: any }) {
                 </div>
               </div>
 
-              <div className="mt-auto space-y-4 pt-6">
+              <div className="mt-6 lg:mt-auto space-y-4 pt-4 border-t border-gray-100 lg:border-t-0 lg:pt-0">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Quantidade</label>
+                    <label className="text-[10px] font-black text-gray-400 tracking-widest px-1 uppercase">Quantidade</label>
                     <input 
                       ref={qtyInputRef}
                       type="number" 
@@ -582,7 +582,7 @@ export function POS({ user }: { user?: any }) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-red-400 uppercase tracking-widest px-1">Desconto (%)</label>
+                    <label className="text-[10px] font-black text-red-400 tracking-widest px-1 uppercase">Desconto (%)</label>
                     <input 
                       type="number" 
                       className="w-full p-4 bg-red-50/30 rounded-2xl border-2 border-transparent focus:border-red-600 focus:bg-white outline-none font-black text-xl text-center text-red-600"
@@ -592,7 +592,7 @@ export function POS({ user }: { user?: any }) {
                   </div>
                 </div>
 
-                <div className="pt-6 border-t-2 border-dashed border-blue-50 mt-6">
+                <div className="pt-4 border-t-2 border-dashed border-blue-50 mt-4">
                   <div className="p-4 bg-blue-50/50 rounded-2xl flex justify-between items-center group hover:bg-blue-600 transition-all cursor-default shadow-sm border border-blue-100/50">
                     <span className="text-[9px] font-black text-blue-600/60 uppercase group-hover:text-white/40 transition-colors">Unitário</span>
                     <span className="text-lg font-black text-blue-900 group-hover:text-white transition-colors">
@@ -606,7 +606,7 @@ export function POS({ user }: { user?: any }) {
         </div>
 
         {/* Right Column: List and Totals */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 min-h-0">
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 min-h-[400px] lg:min-h-0 lg:h-full overflow-hidden">
           <div className="flex-1 bg-white rounded-3xl border border-blue-100 shadow-sm flex flex-col overflow-hidden">
             <div className="bg-blue-50/30 px-8 py-3 flex items-center justify-between border-b border-blue-50">
               <div className="flex items-center gap-3">
@@ -774,22 +774,55 @@ export function POS({ user }: { user?: any }) {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black italic text-blue-900 uppercase">ÚLTIMAS VENDAS</h2>
-                <button onClick={() => setIsLastSalesOpen(false)}><XCircle className="w-8 h-8 text-blue-100" /></button>
+                <h2 className="text-2xl font-black italic text-blue-900 uppercase tracking-tight">Últimas Vendas Online</h2>
+                <button onClick={() => setIsLastSalesOpen(false)}><XCircle className="w-8 h-8 text-blue-300 hover:text-blue-500 transition-colors" /></button>
               </div>
-              <div className="flex-1 overflow-y-auto pr-2">
-                 <p className="text-center py-20 text-blue-200 font-black uppercase text-xs tracking-[0.4em]">Sincronizando com GMAX Cloud...</p>
-                 <div className="space-y-4">
-                    {[1,2,3].map(i => (
-                      <div key={i} className="p-4 bg-blue-50/50 rounded-2xl flex justify-between items-center opacity-40">
-                         <div>
-                            <p className="font-black text-xs text-blue-900">VENDA #000{i}</p>
-                            <p className="text-[10px] text-blue-400 font-black">Há {i*5} min atrás</p>
-                         </div>
-                         <p className="font-black text-blue-900">R$ 0,00</p>
-                      </div>
-                    ))}
-                 </div>
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                 {sales.length === 0 ? (
+                   <div className="text-center py-20 flex flex-col items-center gap-4 text-blue-300">
+                     <ShoppingBag className="w-12 h-12 stroke-1" />
+                     <p className="font-black uppercase text-xs tracking-widest">Nenhuma venda registrada no sistema</p>
+                   </div>
+                 ) : (
+                   <div className="space-y-3">
+                      {sales.slice(0, 50).map((sale) => (
+                        <div 
+                          key={sale.id} 
+                          className={`p-4 rounded-2xl flex justify-between items-center border transition-all ${
+                            sale.isVoided 
+                              ? 'bg-red-50/40 border-red-100 text-red-900/60' 
+                              : 'bg-blue-50/30 border-blue-100/30 hover:bg-blue-50/60 text-blue-950 hover:border-blue-200'
+                          }`}
+                        >
+                           <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[10px] font-black text-blue-900 bg-blue-105 px-2 py-0.5 rounded uppercase tracking-wider">
+                                  #{sale.id.substring(0, 6).toUpperCase()}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">
+                                  {sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod === 'card' ? 'Cartão' : sale.paymentMethod === 'pix' ? 'Pix' : 'A Prazo'}
+                                </span>
+                                {sale.isVoided && (
+                                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-150 text-red-700 animate-pulse">
+                                    Cancelada
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-gray-550 font-bold uppercase tracking-wider">
+                                {sale.customerName || 'CONSUMIDOR PADRÃO'}
+                              </p>
+                              <p className="text-[9px] text-gray-400 font-medium whitespace-nowrap">
+                                {sale.timestamp ? (sale.timestamp.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp)).toLocaleString('pt-BR') : ''}
+                              </p>
+                           </div>
+                           <div className="text-right">
+                              <p className="font-black text-gray-950 text-base">R$ {sale.total.toFixed(2)}</p>
+                              <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Sincronizado</span>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                 )}
               </div>
             </motion.div>
           </motion.div>

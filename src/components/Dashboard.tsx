@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   LineChart, 
   Line, 
@@ -16,15 +16,18 @@ import {
   AlertTriangle, 
   ArrowUpRight,
   Package,
-  Calendar
+  Calendar,
+  Trash2
 } from 'lucide-react';
 import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Sale } from '../types';
 
 export function Dashboard() {
   const { products } = useInventory();
-  const { sales } = useSales();
+  const { sales, deleteSale } = useSales();
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
 
   const stats = useMemo(() => {
     const parseTS = (timestamp: any): Date => {
@@ -190,13 +193,25 @@ export function Dashboard() {
                     </p>
                   </div>
                 </div>
-                {sale.isVoided ? (
-                  <span className="text-[8px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-wider">
-                    Estorno
-                  </span>
-                ) : (
-                  <ArrowUpRight className="w-4 h-4 text-blue-200" />
-                )}
+                <div className="flex items-center gap-2">
+                  {sale.isVoided ? (
+                    <span className="text-[8px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-wider shrink-0">
+                      Estorno
+                    </span>
+                  ) : (
+                    <ArrowUpRight className="w-4 h-4 text-blue-200 shrink-0" />
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSaleToDelete(sale);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all shrink-0"
+                    title="Excluir Registro de Venda"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </motion.div>
             ))}
             {stats.recentSales.length === 0 && (
@@ -210,6 +225,63 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal for deletion */}
+      <AnimatePresence>
+        {saleToDelete && (
+          <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 text-left">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSaleToDelete(null)}
+              className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-red-500"
+            >
+              <div className="mx-auto w-15 h-15 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-blue-900 uppercase">Excluir Registro?</h3>
+                <p className="text-xs text-blue-300 uppercase font-black tracking-widest leading-relaxed">
+                  Esta ação excluirá permanentemente o registro de venda de <span className="text-blue-900">R$ {saleToDelete.total.toFixed(2)}</span> do histórico.
+                  {!saleToDelete.isVoided && (
+                    <span className="block mt-2 text-amber-600 font-extrabold bg-amber-50 rounded-xl p-2.5 border border-amber-200 normal-case tracking-normal">
+                      ⚠️ Nota: O estoque dos produtos comprados será restaurado.
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button 
+                  onClick={() => setSaleToDelete(null)}
+                  className="flex-1 py-4 bg-blue-50 text-blue-400 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-100 transition-all text-xs"
+                >
+                  Manter
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await deleteSale(saleToDelete);
+                      setSaleToDelete(null);
+                    } catch (err) {
+                      console.error("Erro ao excluir venda:", err);
+                    }
+                  }}
+                  className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-500/20 text-xs"
+                >
+                  Excluir
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

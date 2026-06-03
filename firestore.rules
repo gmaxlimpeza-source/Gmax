@@ -32,11 +32,16 @@ service cloud.firestore {
                data.barcode is string && data.barcode.size() > 0 && data.barcode.size() <= 64 &&
                data.price is number && data.price >= 0 &&
                data.stock is number &&
-               data.minStock is number;
+               (!('minStock' in data) || data.minStock is number);
       }
 
       allow create: if isSignedIn() && isValidProduct(incoming());
-      allow update: if isSignedIn() && isValidProduct(incoming());
+      allow update: if isSignedIn() && (
+        isValidProduct(incoming()) ||
+        (incoming().diff(existing()).affectedKeys().hasAll(['stock']) &&
+         incoming().diff(existing()).affectedKeys().size() == 1 &&
+         incoming().stock is number)
+      );
       allow delete: if isSignedIn();
     }
 
@@ -47,11 +52,24 @@ service cloud.firestore {
       function isValidSale(data) {
         return data.items is list && data.items.size() > 0 &&
                data.total is number && data.total >= 0 &&
-               data.paymentMethod in ['cash', 'card', 'pix'];
+               data.paymentMethod in ['cash', 'card', 'pix', 'on_account'];
+      }
+
+      function isValidSaleUpdate(data) {
+        return (
+          // Action: Settle Sale
+          (incoming().onAccountStatus == 'paid' &&
+           incoming().settledAt == request.time &&
+           incoming().total == existing().total) ||
+          // Action: Void Sale
+          (incoming().isVoided == true &&
+           incoming().voidedAt == request.time &&
+           incoming().total == existing().total)
+        );
       }
 
       allow create: if isSignedIn() && isValidSale(incoming());
-      allow update: if false; // Sales are generally immutable except for estorno which we handle by deletion
+      allow update: if isSignedIn() && isValidSaleUpdate(incoming());
       allow delete: if isSignedIn();
     }
   }

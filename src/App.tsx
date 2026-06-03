@@ -117,7 +117,7 @@ export default function App() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -10 }}
           transition={{ duration: 0.2 }}
-          className="h-full"
+          className={`h-full ${currentView !== 'pos' ? 'overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar' : ''}`}
         >
           {renderView()}
         </motion.div>

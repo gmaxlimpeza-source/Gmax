@@ -11,7 +11,8 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Product } from '../types';
 
 export function useInventory() {
@@ -19,31 +20,69 @@ export function useInventory() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('name'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items: Product[] = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Product);
-      });
-      setProducts(items);
-      setLoading(false);
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const q = query(collection(db, 'products'), orderBy('name'));
+        unsubscribeSnapshot = onSnapshot(
+          q,
+          (snapshot) => {
+            const items: Product[] = [];
+            snapshot.forEach((doc) => {
+              items.push({ id: doc.id, ...doc.data() } as Product);
+            });
+            setProducts(items);
+            setLoading(false);
+          },
+          (error) => {
+            handleFirestoreError(error, OperationType.GET, 'products');
+            setLoading(false);
+          }
+        );
+      } else {
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
+        }
+        setProducts([]);
+        setLoading(false);
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
   }, []);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt'>) => {
-    await addDoc(collection(db, 'products'), {
-      ...product,
-      createdAt: Timestamp.now()
-    });
+    try {
+      await addDoc(collection(db, 'products'), {
+        ...product,
+        createdAt: Timestamp.now()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'products');
+    }
   };
 
   const updateProduct = async (id: string, product: Partial<Product>) => {
-    await updateDoc(doc(db, 'products', id), product);
+    try {
+      await updateDoc(doc(db, 'products', id), product);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `products/${id}`);
+    }
   };
 
   const deleteProduct = async (id: string) => {
-    await deleteDoc(doc(db, 'products', id));
+    try {
+      await deleteDoc(doc(db, 'products', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+    }
   };
 
   return { products, loading, addProduct, updateProduct, deleteProduct };

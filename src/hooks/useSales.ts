@@ -10,9 +10,12 @@ import {
   writeBatch,
   Timestamp,
   increment,
-  limit
+  limit,
+  serverTimestamp,
+  getDoc
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Sale, SaleItem, PaymentMethod } from '../types';
 
 export function useSales() {
@@ -20,16 +23,42 @@ export function useSales() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'sales'), orderBy('timestamp', 'desc'), limit(100));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items: Sale[] = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Sale);
-      });
-      setSales(items);
-      setLoading(false);
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const q = query(collection(db, 'sales'), orderBy('timestamp', 'desc'), limit(100));
+        unsubscribeSnapshot = onSnapshot(
+          q, 
+          (snapshot) => {
+            const items: Sale[] = [];
+            snapshot.forEach((doc) => {
+              items.push({ id: doc.id, ...doc.data() } as Sale);
+            });
+            setSales(items);
+            setLoading(false);
+          },
+          (error) => {
+            handleFirestoreError(error, OperationType.GET, 'sales');
+            setLoading(false);
+          }
+        );
+      } else {
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
+        }
+        setSales([]);
+        setLoading(false);
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
   }, []);
 
   const createSale = async (
@@ -45,59 +74,105 @@ export function useSales() {
       onAccountStatus?: 'pending' | 'paid';
     }
   ) => {
-    const batch = writeBatch(db);
-    
-    // Create Sale record
-    const saleRef = doc(collection(db, 'sales'));
-    batch.set(saleRef, {
-      items,
-      total,
-      paymentMethod,
-      timestamp: Timestamp.now(),
-      ...extraData
-    });
-
-    // Update stock levels
-    items.forEach((item) => {
-      const productRef = doc(db, 'products', item.productId);
-      batch.update(productRef, {
-        stock: increment(-item.quantity)
+    try {
+      const batch = writeBatch(db);
+      
+      // Create Sale record
+      const saleRef = doc(collection(db, 'sales'));
+      batch.set(saleRef, {
+        items,
+        total,
+        paymentMethod,
+        timestamp: Timestamp.now(),
+        ...extraData
       });
-    });
 
-    await batch.commit();
+      // Update stock levels
+      items.forEach((item) => {
+        const productRef = doc(db, 'products', item.productId);
+        batch.update(productRef, {
+          stock: increment(-item.quantity)
+        });
+      });
+
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'sales');
+    }
   };
 
   const settleSale = async (saleId: string) => {
-    const batch = writeBatch(db);
-    const saleRef = doc(db, 'sales', saleId);
-    batch.update(saleRef, {
-      onAccountStatus: 'paid',
-      settledAt: Timestamp.now()
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      const saleRef = doc(db, 'sales', saleId);
+      batch.update(saleRef, {
+        onAccountStatus: 'paid',
+        settledAt: serverTimestamp()
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `sales/${saleId}`);
+    }
   };
 
   const voidSale = async (sale: Sale) => {
-    const batch = writeBatch(db);
+    try {
+      const batch = writeBatch(db);
 
-    // Update sale status to voided instead of deleting it
-    const saleRef = doc(db, 'sales', sale.id);
-    batch.update(saleRef, {
-      isVoided: true,
-      voidedAt: Timestamp.now()
-    });
-
-    // Restore stock
-    sale.items.forEach((item) => {
-      const productRef = doc(db, 'products', item.productId);
-      batch.update(productRef, {
-        stock: increment(item.quantity)
+      // Update sale status to voided instead of deleting it
+      const saleRef = doc(db, 'sales', sale.id);
+      batch.update(saleRef, {
+        isVoided: true,
+        voidedAt: serverTimestamp()
       });
-    });
 
-    await batch.commit();
+      // Restore stock for existing products in the sale items
+      if (sale.items) {
+        for (const item of sale.items) {
+          if (item.productId) {
+            const productRef = doc(db, 'products', item.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              batch.update(productRef, {
+                stock: increment(item.quantity)
+              });
+            }
+          }
+        }
+      }
+
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `sales/${sale.id}`);
+    }
   };
 
-  return { sales, loading, createSale, voidSale, settleSale };
+  const deleteSale = async (sale: Sale) => {
+    try {
+      const batch = writeBatch(db);
+      const saleRef = doc(db, 'sales', sale.id);
+      batch.delete(saleRef);
+
+      // If the sale was not already voided, restore the stock of items that still exist
+      if (!sale.isVoided && sale.items) {
+        for (const item of sale.items) {
+          if (item.productId) {
+            const productRef = doc(db, 'products', item.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              batch.update(productRef, {
+                stock: increment(item.quantity)
+              });
+            }
+          }
+        }
+      }
+
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `sales/${sale.id}`);
+    }
+  };
+
+  return { sales, loading, createSale, voidSale, settleSale, deleteSale };
 }
