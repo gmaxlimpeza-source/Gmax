@@ -23,6 +23,7 @@ import { useSales } from '../hooks/useSales';
 import { Product, SaleItem, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
+import { Timestamp } from 'firebase/firestore';
 
 const playScannerBeep = () => {
   try {
@@ -77,6 +78,14 @@ export function POS({ user }: { user?: any }) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [cashAmountReceived, setCashAmountReceived] = useState('');
+  const [onAccountPaidAmount, setOnAccountPaidAmount] = useState('');
+  const [onAccountDueDate, setOnAccountDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+
+  const [changeAmountToShow, setChangeAmountToShow] = useState<number | null>(null);
 
   // Clock
   useEffect(() => {
@@ -88,6 +97,10 @@ export function POS({ user }: { user?: any }) {
     if (cart.length > 0 && !isProcessing) {
       setSelectedPaymentMethod('cash');
       setCashAmountReceived('');
+      setOnAccountPaidAmount('');
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      setOnAccountDueDate(d.toISOString().split('T')[0]);
       setIsPaymentModalOpen(true);
     }
   };
@@ -117,10 +130,52 @@ export function POS({ user }: { user?: any }) {
         e.preventDefault();
       }
 
-      // If payment modal is open, we handle special keys (1, 2, 3, Enter, Escape)
+      // If change modal is active, capture Enter, Escape, Backspace to close it
+      if (changeAmountToShow !== null) {
+        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
+          setChangeAmountToShow(null);
+          setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 50);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // If payment modal is open, we handle special keys (1, 2, 3, 4, F9-F12, Backspace, Enter, Escape)
       if (isPaymentModalOpen) {
         if (e.key === 'Escape') {
           setIsPaymentModalOpen(false);
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'Backspace' && document.activeElement?.tagName !== 'INPUT') {
+          setIsPaymentModalOpen(false);
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'F10') {
+          setSelectedPaymentMethod('cash');
+          e.preventDefault();
+          return;
+        }
+        if (e.key === 'F11') {
+          setSelectedPaymentMethod('card');
+          setCashAmountReceived('');
+          e.preventDefault();
+          return;
+        }
+        if (e.key === 'F12') {
+          setSelectedPaymentMethod('pix');
+          setCashAmountReceived('');
+          e.preventDefault();
+          return;
+        }
+        if (e.key === 'F9') {
+          setSelectedPaymentMethod('on_account');
+          setCashAmountReceived('');
           e.preventDefault();
           return;
         }
@@ -133,11 +188,19 @@ export function POS({ user }: { user?: any }) {
           }
           if (e.key === '2') {
             setSelectedPaymentMethod('card');
+            setCashAmountReceived('');
             e.preventDefault();
             return;
           }
           if (e.key === '3') {
             setSelectedPaymentMethod('pix');
+            setCashAmountReceived('');
+            e.preventDefault();
+            return;
+          }
+          if (e.key === '4') {
+            setSelectedPaymentMethod('on_account');
+            setCashAmountReceived('');
             e.preventDefault();
             return;
           }
@@ -222,7 +285,7 @@ export function POS({ user }: { user?: any }) {
 
     window.addEventListener('keydown', handleGlobalKeys);
     return () => window.removeEventListener('keydown', handleGlobalKeys);
-  }, [products, quantity, cart, isProcessing, isPaymentModalOpen, selectedPaymentMethod]);
+  }, [products, quantity, cart, isProcessing, isPaymentModalOpen, selectedPaymentMethod, changeAmountToShow]);
 
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToast({ message, type });
@@ -282,16 +345,54 @@ export function POS({ user }: { user?: any }) {
 
   const handleCheckout = async (method: PaymentMethod) => {
     if (cart.length === 0) return;
+
+    let change = 0;
+    if (method === 'cash') {
+      const received = parseFloat(cashAmountReceived);
+      if (isNaN(received) || received < total) {
+        showToast('Valor recebido em dinheiro é insuficiente', 'error');
+        return;
+      }
+      change = received - total;
+    }
+
+    if (method === 'on_account' && (!customerName || customerName === 'CONSUMIDOR PADRÃO')) {
+      showToast('Identifique o cliente para venda a prazo [F6]', 'error');
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      await createSale(cart, total, method);
+      const extraData: any = {};
+      
+      extraData.customerName = customerName;
+      if (customerCpf) {
+        extraData.customerCpf = customerCpf;
+      }
+
+      if (method === 'on_account') {
+        const paidAmount = parseFloat(onAccountPaidAmount) || 0;
+        const outstandingAmount = total - paidAmount;
+        
+        extraData.onAccountPaidAmount = paidAmount;
+        extraData.onAccountOutstandingAmount = outstandingAmount;
+        extraData.onAccountDueDate = Timestamp.fromDate(new Date(onAccountDueDate + 'T12:00:00'));
+        extraData.onAccountStatus = 'pending';
+      }
+
+      await createSale(cart, total, method, extraData);
       setCart([]);
       setDiscount(0);
       setIsPaymentModalOpen(false);
-      showToast('Venda concluída com sucesso!', 'success');
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
+      
+      if (method === 'cash' && change > 0) {
+        setChangeAmountToShow(change);
+      } else {
+        showToast('Venda concluída com sucesso!', 'success');
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 50);
+      }
     } catch (error) {
       showToast('Falha crítica ao gravar venda');
       console.error(error);
@@ -308,7 +409,7 @@ export function POS({ user }: { user?: any }) {
       <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-950 text-white h-14 flex items-center justify-between shadow-xl border-b-2 border-blue-400 shrink-0 z-30 px-6">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5">
-            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[32px] h-[32px] object-contain" referrerPolicy="no-referrer" />
+            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[32px] h-[32px] object-contain rounded-lg shadow-sm" referrerPolicy="no-referrer" />
             <h1 className="text-xl font-black tracking-tighter uppercase italic text-white">
               GMAX <span className="text-blue-400">PDV</span>
             </h1>
@@ -871,24 +972,24 @@ export function POS({ user }: { user?: any }) {
                 </span>
               </div>
 
-              {/* Three selection options */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Four selection options */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* cash - Dinheiro */}
                 <button
                   type="button"
                   onClick={() => setSelectedPaymentMethod('cash')}
-                  className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all duration-200 relative ${
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-200 relative ${
                     selectedPaymentMethod === 'cash'
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-lg shadow-emerald-500/15'
-                      : 'bg-white border-blue-100 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
+                      : 'bg-white border-blue-105 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
                   }`}
                 >
-                  <div className={`p-4 rounded-xl ${selectedPaymentMethod === 'cash' ? 'bg-emerald-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
-                    <Banknote className="w-8 h-8" />
+                  <div className={`p-3 rounded-lg ${selectedPaymentMethod === 'cash' ? 'bg-emerald-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
+                    <Banknote className="w-6 h-6" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-sm uppercase">Dinheiro</p>
-                    <p className="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-60">Atalho [1]</p>
+                    <p className="font-black text-xs uppercase leading-none">Dinheiro</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Atalho [F10]</p>
                   </div>
                 </button>
 
@@ -899,18 +1000,18 @@ export function POS({ user }: { user?: any }) {
                     setSelectedPaymentMethod('card');
                     setCashAmountReceived('');
                   }}
-                  className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all duration-200 relative ${
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-200 relative ${
                     selectedPaymentMethod === 'card'
                       ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-lg shadow-blue-500/15'
-                      : 'bg-white border-blue-100 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
+                      : 'bg-white border-blue-105 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
                   }`}
                 >
-                  <div className={`p-4 rounded-xl ${selectedPaymentMethod === 'card' ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
-                    <CreditCard className="w-8 h-8" />
+                  <div className={`p-3 rounded-lg ${selectedPaymentMethod === 'card' ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
+                    <CreditCard className="w-6 h-6" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-sm uppercase">Cartão</p>
-                    <p className="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-60">Atalho [2]</p>
+                    <p className="font-black text-xs uppercase leading-none">Cartão</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Atalho [F11]</p>
                   </div>
                 </button>
 
@@ -921,24 +1022,46 @@ export function POS({ user }: { user?: any }) {
                     setSelectedPaymentMethod('pix');
                     setCashAmountReceived('');
                   }}
-                  className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all duration-200 relative ${
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-200 relative ${
                     selectedPaymentMethod === 'pix'
                       ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-lg shadow-teal-500/15'
-                      : 'bg-white border-blue-100 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
+                      : 'bg-white border-blue-105 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
                   }`}
                 >
-                  <div className={`p-4 rounded-xl ${selectedPaymentMethod === 'pix' ? 'bg-teal-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
-                    <QrCode className="w-8 h-8" />
+                  <div className={`p-3 rounded-lg ${selectedPaymentMethod === 'pix' ? 'bg-teal-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
+                    <QrCode className="w-6 h-6" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-sm uppercase">Pix</p>
-                    <p className="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-60">Atalho [3]</p>
+                    <p className="font-black text-xs uppercase leading-none">Pix</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Atalho [F12]</p>
+                  </div>
+                </button>
+
+                {/* on_account - A Prazo / Aberto */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPaymentMethod('on_account');
+                    setCashAmountReceived('');
+                  }}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-200 relative ${
+                    selectedPaymentMethod === 'on_account'
+                      ? 'bg-amber-50 border-amber-500 text-amber-750 shadow-lg shadow-amber-500/15'
+                      : 'bg-white border-blue-105 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
+                  }`}
+                >
+                  <div className={`p-3 rounded-lg ${selectedPaymentMethod === 'on_account' ? 'bg-amber-550 text-white' : 'bg-blue-50 text-blue-500'}`}>
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-black text-xs uppercase leading-none">A Prazo</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Atalho [F9]</p>
                   </div>
                 </button>
               </div>
 
               {/* Dynamic Helper/Interactive area based on selected method */}
-              <div className="bg-blue-50/30 rounded-2xl p-6 border border-blue-100/50 min-h-[140px] flex flex-col justify-center">
+              <div className="bg-blue-50/30 rounded-2xl p-6 border border-blue-100/50 min-h-[160px] flex flex-col justify-center">
                 {selectedPaymentMethod === 'cash' && (
                   <div className="space-y-4">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -955,7 +1078,8 @@ export function POS({ user }: { user?: any }) {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              if (!isProcessing) {
+                              const received = parseFloat(cashAmountReceived);
+                              if (!isProcessing && !isNaN(received) && received >= total) {
                                 handleCheckout('cash');
                               }
                             }
@@ -964,19 +1088,52 @@ export function POS({ user }: { user?: any }) {
                       </div>
                       
                       {(() => {
-                        const paid = parseFloat(cashAmountReceived);
+                        const paid = parseFloat(cashAmountReceived) || 0;
                         const change = paid - total;
                         return (
-                          <div className="w-full text-center md:text-right flex flex-col items-center md:items-end justify-center">
+                          <div className="w-full text-center md:text-right flex flex-col items-center md:items-end justify-center bg-white p-4 rounded-xl border border-blue-50 shadow-sm">
                             <span className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest">Troco a Devolver</span>
-                            <span className={`text-3xl font-black mt-1 ${change >= 0 ? 'text-emerald-600' : 'text-blue-900/30'}`}>
+                            <span className={`text-4xl font-black mt-1 ${change >= 0 ? 'text-emerald-600' : 'text-blue-900/20'}`}>
                               R$ {change >= 0 ? change.toFixed(2) : '0,00'}
                             </span>
+                            {change < 0 && paid > 0 && (
+                              <span className="text-[10px] font-bold text-red-500 mt-1 uppercase">Falta R$ {Math.abs(change).toFixed(2)}</span>
+                            )}
                           </div>
                         );
                       })()}
                     </div>
-                    <p className="text-[9px] text-center text-blue-900/30 font-black uppercase tracking-widest">
+
+                    {/* Banknote suggestions */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] font-black uppercase text-blue-900/40 tracking-widest block">Sugestões de Cédulas Rápidas</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCashAmountReceived(total.toFixed(2))}
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250 text-emerald-800 text-[10px] font-black rounded-lg uppercase transition-all"
+                        >
+                          Valor Exato (R$ {total.toFixed(2)})
+                        </button>
+                        {[5, 10, 20, 50, 100, 200].map((bill) => {
+                          if (bill >= total || bill === 10 || bill === 5) {
+                            return (
+                              <button
+                                key={bill}
+                                type="button"
+                                onClick={() => setCashAmountReceived(bill.toFixed(2))}
+                                className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-blue-200 hover:border-blue-300 text-blue-900 text-[10px] font-black rounded-lg transition-all"
+                              >
+                                R$ {bill.toFixed(2)}
+                              </button>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                    </div>
+
+                    <p className="text-[9px] text-center text-blue-900/30 font-black uppercase tracking-widest leading-none pt-1">
                       Tecle <span className="text-emerald-600 font-extrabold">ENTER</span> para concluir a venda em Espécie
                     </p>
                   </div>
@@ -1016,6 +1173,86 @@ export function POS({ user }: { user?: any }) {
                     </div>
                   </div>
                 )}
+
+                {selectedPaymentMethod === 'on_account' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-amber-800 uppercase tracking-widest block">Sinal / Entrada Adiantada (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0,00"
+                          className="w-full p-3 bg-white rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none font-black text-lg text-center text-amber-800 shadow-sm"
+                          value={onAccountPaidAmount}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            if (val > total) {
+                              setOnAccountPaidAmount(total.toFixed(2));
+                            } else {
+                              setOnAccountPaidAmount(e.target.value);
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-amber-800 uppercase tracking-widest block">Data limite de Vencimento</label>
+                        <input
+                          type="date"
+                          className="w-full p-3 bg-white rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none font-black text-sm text-center text-amber-800 shadow-sm"
+                          value={onAccountDueDate}
+                          onChange={(e) => setOnAccountDueDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Show dynamic outstanding balance */}
+                    {(() => {
+                      const paid = parseFloat(onAccountPaidAmount) || 0;
+                      const remaining = total - paid;
+                      return (
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/50 flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-amber-800/60 uppercase tracking-widest">Valor do Débito em Aberto</span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Pendência no cadastro do cliente</span>
+                          </div>
+                          <span className="text-2xl font-black text-amber-600">R$ {remaining.toFixed(2)}</span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Inline Quick Customer edit inside checkout (Extreme usability) */}
+                    <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/30 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-blue-900/60 uppercase tracking-widest block">Cliente Responsável pelo Débito</span>
+                        {customerName === 'CONSUMIDOR PADRÃO' && (
+                          <span className="text-[8px] font-black bg-red-100 border border-red-200 text-red-650 px-2 py-0.5 rounded-full uppercase">Preenchimento Obrigatório</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="DIGITE O NOME DO CLIENTE"
+                          className="w-full px-3 py-2 bg-white rounded-lg border border-blue-200 focus:border-blue-500 outline-none font-black text-xs uppercase"
+                          value={customerName === 'CONSUMIDOR PADRÃO' ? '' : customerName}
+                          onChange={(e) => setCustomerName(e.target.value.toUpperCase() || 'CONSUMIDOR PADRÃO')}
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="CPF / CNPJ (OPCIONAL)"
+                          className="w-full px-3 py-2 bg-white rounded-lg border border-blue-200 focus:border-blue-500 outline-none font-black text-xs font-mono"
+                          value={customerCpf}
+                          onChange={(e) => setCustomerCpf(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[9px] text-center text-amber-800/40 font-black uppercase tracking-widest leading-none">
+                      Pressione <span className="text-amber-600 font-extrabold">ENTER</span> para concluir a venda a Prazo / em Aberto
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Confirm / Cancel Buttons */}
@@ -1025,7 +1262,7 @@ export function POS({ user }: { user?: any }) {
                   onClick={() => setIsPaymentModalOpen(false)}
                   className="py-4 bg-blue-50 text-blue-400 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-100 transition-all font-black text-xs"
                 >
-                  Cancelar [ESC]
+                  Cancelar [ESC / Backspace]
                 </button>
                 <button 
                   type="button"
@@ -1038,6 +1275,65 @@ export function POS({ user }: { user?: any }) {
                 >
                   Confirmar [ENTER]
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {changeAmountToShow !== null && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-blue-950/95 backdrop-blur-md z-[300] flex items-center justify-center p-4"
+            onClick={() => {
+              setChangeAmountToShow(null);
+              setTimeout(() => {
+                searchInputRef.current?.focus();
+              }, 50);
+            }}
+          >
+            <motion.div 
+              initial={{ scale: 0.8, y: 40 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.8, y: 40 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-t-8 border-emerald-500 flex flex-col items-center text-center gap-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 animate-bounce">
+                <Banknote className="w-10 h-10" />
+              </div>
+              
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">TROCO A DEVOLVER</h2>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                  ENTREGUE O VALOR CORRETO AO CLIENTE
+                </p>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 w-full flex flex-col items-center justify-center shadow-inner">
+                <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest leading-none mb-1">VALOR DO TROCO</span>
+                <span className="text-5xl font-black text-emerald-600 tracking-tight">
+                  R$ {changeAmountToShow.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="w-full space-y-3">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setChangeAmountToShow(null);
+                    setTimeout(() => {
+                      searchInputRef.current?.focus();
+                    }, 50);
+                  }}
+                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 text-xs"
+                >
+                  Confirmar e Fechar [ENTER]
+                </button>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                  Ou tecle <span className="font-extrabold text-gray-600">ESC</span> / <span className="font-extrabold text-gray-600">BACKSPACE</span> para fechar
+                </p>
               </div>
             </motion.div>
           </motion.div>

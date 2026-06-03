@@ -32,7 +32,19 @@ export function useSales() {
     return unsubscribe;
   }, []);
 
-  const createSale = async (items: SaleItem[], total: number, paymentMethod: PaymentMethod) => {
+  const createSale = async (
+    items: SaleItem[], 
+    total: number, 
+    paymentMethod: PaymentMethod,
+    extraData?: {
+      customerName?: string;
+      customerCpf?: string;
+      onAccountPaidAmount?: number;
+      onAccountOutstandingAmount?: number;
+      onAccountDueDate?: Timestamp;
+      onAccountStatus?: 'pending' | 'paid';
+    }
+  ) => {
     const batch = writeBatch(db);
     
     // Create Sale record
@@ -41,7 +53,8 @@ export function useSales() {
       items,
       total,
       paymentMethod,
-      timestamp: Timestamp.now()
+      timestamp: Timestamp.now(),
+      ...extraData
     });
 
     // Update stock levels
@@ -52,6 +65,16 @@ export function useSales() {
       });
     });
 
+    await batch.commit();
+  };
+
+  const settleSale = async (saleId: string) => {
+    const batch = writeBatch(db);
+    const saleRef = doc(db, 'sales', saleId);
+    batch.update(saleRef, {
+      onAccountStatus: 'paid',
+      settledAt: Timestamp.now()
+    });
     await batch.commit();
   };
 
@@ -76,5 +99,5 @@ export function useSales() {
     await batch.commit();
   };
 
-  return { sales, loading, createSale, voidSale };
+  return { sales, loading, createSale, voidSale, settleSale };
 }

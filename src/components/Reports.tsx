@@ -25,7 +25,7 @@ import { Sale, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function Reports() {
-  const { sales, voidSale, loading } = useSales();
+  const { sales, voidSale, loading, settleSale } = useSales();
   const [filter, setFilter] = useState<'today' | 'month' | 'all'>('today');
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
 
@@ -78,14 +78,16 @@ export function Reports() {
   }, [activeSales]);
 
   const pieData = useMemo(() => {
-    const data: Record<PaymentMethod, number> = { cash: 0, card: 0, pix: 0 };
+    const data: Record<PaymentMethod, number> = { cash: 0, card: 0, pix: 0, on_account: 0 };
     activeSales.forEach(s => {
-      data[s.paymentMethod] += s.total;
+      const method = s.paymentMethod || 'cash';
+      data[method] = (data[method] || 0) + s.total;
     });
     return [
-      { name: 'Dinheiro', value: data.cash, color: '#F97316' },
-      { name: 'Cartão', value: data.card, color: '#3B82F6' },
-      { name: 'PIX', value: data.pix, color: '#14B8A6' }
+      { name: 'Dinheiro', value: data.cash ?? 0, color: '#F97316' },
+      { name: 'Cartão', value: data.card ?? 0, color: '#3B82F6' },
+      { name: 'PIX', value: data.pix ?? 0, color: '#14B8A6' },
+      { name: 'A Prazo', value: data.on_account ?? 0, color: '#D97706' }
     ].filter(d => d.value > 0);
   }, [activeSales]);
 
@@ -187,63 +189,110 @@ export function Reports() {
         </div>
         <div className="divide-y divide-blue-50">
           {filteredSales.map((sale) => (
-            <div key={sale.id} className={`p-6 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+            <div key={sale.id} className={`p-6 transition-colors flex flex-col gap-4 ${
               sale.isVoided 
                 ? 'bg-red-50/10 hover:bg-red-50/20 opacity-75' 
                 : 'hover:bg-blue-50/20'
             }`}>
-              <div className="flex items-start gap-4">
-                <div className={`p-4 rounded-2xl ${
-                  sale.isVoided
-                    ? 'bg-red-50 text-red-600'
-                    : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
-                      sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
-                      'bg-orange-50 text-orange-600'
-                }`}>
-                  <CalendarDays className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3">
-                    <p className={`font-black text-xl tracking-tight ${sale.isVoided ? 'text-red-600 line-through' : 'text-gray-950'}`}>
-                      R$ {sale.total.toFixed(2)}
-                    </p>
-                    <span className="text-[9px] font-black bg-blue-50 px-2 py-1 rounded-full border border-blue-250 uppercase tracking-widest text-blue-900">
-                      {sale.paymentMethod}
-                    </span>
-                    {sale.isVoided && (
-                      <span className="text-[9px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-widest">
-                        Estornada
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className={`p-4 rounded-2xl shrink-0 ${
+                    sale.isVoided
+                      ? 'bg-red-50 text-red-600'
+                      : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
+                        sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
+                        sale.paymentMethod === 'on_account' ? 'bg-amber-50 text-amber-700' :
+                        'bg-orange-50 text-orange-600'
+                  }`}>
+                    <CalendarDays className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className={`font-black text-xl tracking-tight ${sale.isVoided ? 'text-red-600 line-through' : 'text-gray-950'}`}>
+                        R$ {sale.total.toFixed(2)}
+                      </p>
+                      <span className={`text-[9px] font-black px-2 py-1 rounded-full border uppercase tracking-widest ${
+                        sale.paymentMethod === 'on_account' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                        sale.paymentMethod === 'pix' ? 'bg-teal-50 border-teal-200 text-teal-850' :
+                        sale.paymentMethod === 'card' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                        'bg-orange-50 border-orange-200 text-orange-800'
+                      }`}>
+                        {sale.paymentMethod === 'on_account' ? 'A Prazo / Aberto' : sale.paymentMethod}
                       </span>
+                      {sale.isVoided && (
+                        <span className="text-[9px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-widest">
+                          Estornada
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-800 font-extrabold uppercase tracking-widest mt-1">
+                      ID: {sale.id.slice(0, 8)} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleString('pt-BR')}
+                      {sale.customerName && ` • Cliente: ${sale.customerName}`}
+                      {sale.customerCpf && ` (${sale.customerCpf})`}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {sale.items.map((item, idx) => (
+                        <span key={idx} className={`text-[9px] font-extrabold border px-3 py-1 rounded-full uppercase ${
+                          sale.isVoided
+                            ? 'border-red-100 bg-red-50/40 text-red-900/60'
+                            : 'border-blue-200 bg-blue-100/60 text-blue-950'
+                        }`}>
+                          {item.quantity}x {item.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {sale.isVoided ? (
+                  <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none self-start md:self-auto">
+                    Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setSaleToVoid(sale)}
+                    className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-650 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100 self-start md:self-auto"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    Estornar Venda
+                  </button>
+                )}
+              </div>
+
+              {/* Outstanding payment details Settlement section */}
+              {!sale.isVoided && sale.paymentMethod === 'on_account' && (
+                <div className="mt-2 p-4 bg-amber-50/40 rounded-2xl border border-amber-200/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="text-xs">
+                    <span className="font-extrabold text-amber-800 uppercase text-[9.5px] tracking-widest block">Controle de Venda a Prazo</span>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 mt-1 text-gray-500 font-bold">
+                      <span>Valor de Entrada: <strong className="text-gray-800">R$ {(sale.onAccountPaidAmount || 0).toFixed(2)}</strong></span>
+                      <span>Valor em Aberto: <strong className="text-amber-700">R$ {(sale.onAccountOutstandingAmount ?? sale.total).toFixed(2)}</strong></span>
+                      <span>Vencimento: <strong className="text-gray-800">{(sale.onAccountDueDate ? (typeof sale.onAccountDueDate.toDate === 'function' ? sale.onAccountDueDate.toDate() : (sale.onAccountDueDate.seconds ? new Date(sale.onAccountDueDate.seconds * 1000) : new Date(sale.onAccountDueDate))) : new Date()).toLocaleDateString('pt-BR')}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {sale.onAccountStatus === 'paid' ? (
+                      <span className="text-[9px] font-black bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-full uppercase tracking-widest">
+                        Débito Quitado
+                      </span>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          if (window.confirm(`Confirmar quitação do saldo pendente de R$ ${(sale.onAccountOutstandingAmount ?? sale.total).toFixed(2)} para o cliente ${sale.customerName || 'CONSUMIDOR PADRÃO'}?`)) {
+                            try {
+                              await settleSale(sale.id);
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }
+                        }}
+                        className="bg-amber-500 hover:bg-amber-600 border-2 border-amber-400 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-widest transition-all shadow-md active:scale-95 hover:shadow-lg"
+                      >
+                        Quitar Aberto
+                      </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-800 font-extrabold uppercase tracking-widest mt-1">
-                    ID: {sale.id.slice(0, 8)} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleString('pt-BR')}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {sale.items.map((item, idx) => (
-                      <span key={idx} className={`text-[9px] font-extrabold border px-3 py-1 rounded-full uppercase ${
-                        sale.isVoided
-                          ? 'border-red-100 bg-red-50/40 text-red-900/60'
-                          : 'border-blue-200 bg-blue-100/60 text-blue-950'
-                      }`}>
-                        {item.quantity}x {item.name}
-                      </span>
-                    ))}
-                  </div>
                 </div>
-              </div>
-              {sale.isVoided ? (
-                <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none">
-                  Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setSaleToVoid(sale)}
-                  className="flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-600 transition-all uppercase tracking-widest bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100"
-                >
-                  <ArrowLeftRight className="w-4 h-4" />
-                  Estornar Venda
-                </button>
               )}
             </div>
           ))}

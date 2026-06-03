@@ -32,7 +32,7 @@ export function Layout({ children, currentView, setView, user, onSignOut }: Layo
       <aside className="w-20 bg-[#0a192f] border-r border-blue-500/10 flex flex-col justify-between overflow-hidden z-20 shadow-[10px_0_40px_rgba(0,0,100,0.15)] shrink-0">
         <div className="p-4 border-b border-white/5 flex justify-center">
           <div className="w-12 h-12 flex items-center justify-center flex-shrink-0" title="GMAX PDV">
-            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[44px] h-[44px] object-contain hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+            <img src="/gmax_logo_clean.png" alt="GMAX Logo" className="w-[44px] h-[44px] object-contain rounded-xl hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
           </div>
         </div>
         

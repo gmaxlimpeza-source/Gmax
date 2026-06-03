@@ -18,7 +18,7 @@ export interface SaleItem {
   quantity: number;
 }
 
-export type PaymentMethod = 'cash' | 'card' | 'pix';
+export type PaymentMethod = 'cash' | 'card' | 'pix' | 'on_account';
 
 export interface Sale {
   id: string;
@@ -28,4 +28,11 @@ export interface Sale {
   timestamp: Timestamp;
   isVoided?: boolean;
   voidedAt?: Timestamp;
+  customerName?: string;
+  customerCpf?: string;
+  onAccountPaidAmount?: number;
+  onAccountOutstandingAmount?: number;
+  onAccountDueDate?: Timestamp;
+  onAccountStatus?: 'pending' | 'paid';
+  settledAt?: Timestamp;
 }
