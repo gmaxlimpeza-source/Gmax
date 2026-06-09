@@ -1101,12 +1101,17 @@ export function POS({ user }: { user?: any }) {
                       <div className="w-full space-y-1.5">
                         <label className="text-[10px] font-black text-blue-900/50 uppercase tracking-widest">Valor Recebido (R$)</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0,00"
                           className="w-full p-4 bg-white rounded-xl border-2 border-blue-100 focus:border-emerald-500 outline-none font-black text-xl text-center text-emerald-600 shadow-sm"
                           value={cashAmountReceived}
-                          onChange={(e) => setCashAmountReceived(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/,/g, '.');
+                            if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                              setCashAmountReceived(val);
+                            }
+                          }}
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -1213,17 +1218,20 @@ export function POS({ user }: { user?: any }) {
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-amber-800 uppercase tracking-widest block">Sinal / Entrada Adiantada (R$)</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0,00"
                           className="w-full p-3 bg-white rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none font-black text-lg text-center text-amber-800 shadow-sm"
                           value={onAccountPaidAmount}
                           onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            if (val > total) {
-                              setOnAccountPaidAmount(total.toFixed(2));
-                            } else {
-                              setOnAccountPaidAmount(e.target.value);
+                            const val = e.target.value.replace(/,/g, '.');
+                            if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                              const parsedVal = parseFloat(val) || 0;
+                              if (parsedVal > total) {
+                                setOnAccountPaidAmount(total.toFixed(2));
+                              } else {
+                                setOnAccountPaidAmount(val);
+                              }
                             }
                           }}
                         />
