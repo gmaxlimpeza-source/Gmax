@@ -23,8 +23,10 @@ import {
 import { useSales } from '../hooks/useSales';
 import { Sale, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { usePerformanceMode } from '../hooks/usePerformanceMode';
 
 export function Reports() {
+  const { isPerformanceMode } = usePerformanceMode();
   const { sales, voidSale, loading, settleSale, deleteSale } = useSales();
   const [filter, setFilter] = useState<'today' | 'month' | 'all'>('today');
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
@@ -322,16 +324,18 @@ export function Reports() {
         {saleToVoid && (
           <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={isPerformanceMode ? false : { opacity: 0 }}
+              animate={isPerformanceMode ? { opacity: 1 } : { opacity: 1 }}
+              exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               onClick={() => setSaleToVoid(null)}
               className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={isPerformanceMode ? false : { opacity: 0, scale: 0.9 }}
+              animate={isPerformanceMode ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+              exit={isPerformanceMode ? { opacity: 0, scale: 0.9 } : { opacity: 0, scale: 0.9 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-orange-500"
             >
               <div className="mx-auto w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center">
@@ -364,16 +368,18 @@ export function Reports() {
         {saleToDelete && (
           <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 text-left">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={isPerformanceMode ? false : { opacity: 0 }}
+              animate={isPerformanceMode ? { opacity: 1 } : { opacity: 1 }}
+              exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               onClick={() => setSaleToDelete(null)}
               className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={isPerformanceMode ? false : { opacity: 0, scale: 0.9 }}
+              animate={isPerformanceMode ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+              exit={isPerformanceMode ? { opacity: 0, scale: 0.9 } : { opacity: 0, scale: 0.9 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-red-500"
             >
               <div className="mx-auto w-15 h-15 bg-red-50 text-red-600 rounded-full flex items-center justify-center">

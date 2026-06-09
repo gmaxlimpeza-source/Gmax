@@ -23,8 +23,10 @@ import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sale } from '../types';
+import { usePerformanceMode } from '../hooks/usePerformanceMode';
 
 export function Dashboard() {
+  const { isPerformanceMode } = usePerformanceMode();
   const { products } = useInventory();
   const { sales, deleteSale } = useSales();
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
@@ -164,9 +166,9 @@ export function Dashboard() {
           <div className="space-y-4">
             {stats.recentSales.map((sale, i) => (
               <motion.div 
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
+                initial={isPerformanceMode ? false : { opacity: 0, x: 10 }}
+                animate={isPerformanceMode ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+                transition={isPerformanceMode ? { duration: 0 } : { delay: i * 0.1 }}
                 key={sale.id} 
                 className={`flex items-center justify-between p-3 rounded-xl transition-all cursor-default border ${
                   sale.isVoided 
@@ -231,16 +233,18 @@ export function Dashboard() {
         {saleToDelete && (
           <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 text-left">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={isPerformanceMode ? false : { opacity: 0 }}
+              animate={isPerformanceMode ? { opacity: 1 } : { opacity: 1 }}
+              exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               onClick={() => setSaleToDelete(null)}
               className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={isPerformanceMode ? false : { opacity: 0, scale: 0.9 }}
+              animate={isPerformanceMode ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+              exit={isPerformanceMode ? { opacity: 0, scale: 0.9 } : { opacity: 0, scale: 0.9 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-red-500"
             >
               <div className="mx-auto w-15 h-15 bg-red-50 text-red-600 rounded-full flex items-center justify-center">

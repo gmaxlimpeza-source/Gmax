@@ -1,14 +1,18 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
   Package, 
   BarChart3, 
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Zap,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { usePerformanceMode } from '../hooks/usePerformanceMode';
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +23,29 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentView, setView, user, onSignOut }: LayoutProps) {
+  const { isPerformanceMode, togglePerformanceMode } = usePerformanceMode();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      console.warn('Erro ao alternar modo tela inteira:', e);
+    }
+  };
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pos', label: 'PDV / Vendas', icon: ShoppingCart },
@@ -56,11 +83,35 @@ export function Layout({ children, currentView, setView, user, onSignOut }: Layo
           ))}
         </nav>
 
-        <div className="p-2 md:p-4 border-l md:border-l-0 md:border-t border-white/10 flex items-center justify-center">
+        <div className="p-2 md:p-4 border-l md:border-l-0 md:border-t border-white/10 flex flex-row md:flex-col items-center justify-center gap-2 md:space-y-2">
+          <button 
+            onClick={togglePerformanceMode}
+            title={isPerformanceMode ? "Modo Desempenho Ativo (Leve)" : "Ativar Modo Desempenho (Mais Leve)"}
+            className={`flex items-center justify-center p-2.5 md:py-3.5 rounded-xl transition-all duration-300 relative ${
+              isPerformanceMode 
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                : 'text-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300'
+            }`}
+          >
+            <Zap className={`w-5 h-5 md:w-6 md:h-6 flex-shrink-0 ${isPerformanceMode ? 'fill-current' : ''}`} />
+          </button>
+
+          <button 
+            onClick={handleToggleFullscreen}
+            title={isFullscreen ? "Sair da Tela Inteira" : "Modo Tela Inteira (Sem Bordas)"}
+            className="flex items-center justify-center p-2.5 md:py-3.5 rounded-xl text-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300 transition-all duration-300"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
+            ) : (
+              <Maximize2 className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
+            )}
+          </button>
+
           <button 
             onClick={onSignOut}
             title="Sair"
-            className="flex items-center justify-center p-2.5 md:py-4 rounded-xl text-blue-400/40 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"
+            className="flex items-center justify-center p-2.5 md:py-3.5 rounded-xl text-blue-400/40 hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"
           >
             <LogOut className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
           </button>

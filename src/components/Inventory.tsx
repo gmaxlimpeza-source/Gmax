@@ -14,8 +14,10 @@ import {
 import { useInventory } from '../hooks/useInventory';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { usePerformanceMode } from '../hooks/usePerformanceMode';
 
 export function Inventory() {
+  const { isPerformanceMode } = usePerformanceMode();
   const { products, addProduct, updateProduct, deleteProduct, loading } = useInventory();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,16 +166,18 @@ export function Inventory() {
         {isFormOpen && (
           <>
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={isPerformanceMode ? false : { opacity: 0 }}
+              animate={isPerformanceMode ? { opacity: 1 } : { opacity: 1 }}
+              exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               onClick={() => setIsFormOpen(false)}
               className="fixed inset-0 bg-blue-950/20 backdrop-blur-sm z-[60]"
             />
             <motion.div 
-              initial={{ opacity: 0, x: 400 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 400 }}
+              initial={isPerformanceMode ? false : { opacity: 0, x: 400 }}
+              animate={isPerformanceMode ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+              exit={isPerformanceMode ? { opacity: 0, x: 400 } : { opacity: 0, x: 400 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-[70] p-8 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-8">
@@ -214,16 +218,18 @@ export function Inventory() {
         {deleteConfirmId && (
           <div className="fixed inset-0 flex items-center justify-center z-[100] p-4">
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={isPerformanceMode ? false : { opacity: 0 }}
+              animate={isPerformanceMode ? { opacity: 1 } : { opacity: 1 }}
+              exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               onClick={() => setDeleteConfirmId(null)}
               className="absolute inset-0 bg-blue-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={isPerformanceMode ? false : { opacity: 0, scale: 0.9 }}
+              animate={isPerformanceMode ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+              exit={isPerformanceMode ? { opacity: 0, scale: 0.9 } : { opacity: 0, scale: 0.9 }}
+              transition={isPerformanceMode ? { duration: 0 } : undefined}
               className="relative bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl space-y-6 text-center border-t-8 border-red-500"
             >
               <div className="mx-auto w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center">

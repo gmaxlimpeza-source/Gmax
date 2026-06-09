@@ -24,6 +24,7 @@ import { Product, SaleItem, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 import { Timestamp } from 'firebase/firestore';
+import { usePerformanceMode } from '../hooks/usePerformanceMode';
 
 const playScannerBeep = () => {
   try {
@@ -50,6 +51,7 @@ const playScannerBeep = () => {
 };
 
 export function POS({ user }: { user?: any }) {
+  const { isPerformanceMode } = usePerformanceMode();
   const { products } = useInventory();
   const { sales, createSale } = useSales();
   
@@ -536,9 +538,10 @@ export function POS({ user }: { user?: any }) {
                     <AnimatePresence>
                       {searchTerm && filteredProducts.length > 0 && (
                         <motion.div 
-                           initial={{ opacity: 0, scale: 0.95 }}
-                           animate={{ opacity: 1, scale: 1 }}
-                           exit={{ opacity: 0 }}
+                           initial={isPerformanceMode ? false : { opacity: 0, scale: 0.95 }}
+                           animate={isPerformanceMode ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+                           exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0 }}
+                           transition={isPerformanceMode ? { duration: 0 } : undefined}
                            className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-blue-600 rounded-2xl shadow-3xl z-[100] max-h-60 overflow-y-auto"
                         >
                           {filteredProducts.map(p => (
@@ -634,8 +637,9 @@ export function POS({ user }: { user?: any }) {
                 <tbody className="font-bold text-sm">
                   {cart.map((item, idx) => (
                     <motion.tr 
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
+                      initial={isPerformanceMode ? false : { opacity: 0, x: 20 }}
+                      animate={isPerformanceMode ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+                      transition={isPerformanceMode ? { duration: 0 } : undefined}
                       key={idx} 
                       className="odd:bg-blue-50/5 group hover:bg-blue-50/50 transition-colors"
                     >

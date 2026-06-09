@@ -8,8 +8,10 @@ import { Inventory } from './components/Inventory';
 import { Reports } from './components/Reports';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Loader2 } from 'lucide-react';
+import { usePerformanceMode } from './hooks/usePerformanceMode';
 
 export default function App() {
+  const { isPerformanceMode } = usePerformanceMode();
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'dashboard' | 'pos' | 'inventory' | 'reports'>('pos');
@@ -113,10 +115,10 @@ export default function App() {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentView}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -10 }}
-          transition={{ duration: 0.2 }}
+          initial={isPerformanceMode ? false : { opacity: 0, x: 10 }}
+          animate={isPerformanceMode ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+          exit={isPerformanceMode ? { opacity: 0 } : { opacity: 0, x: -10 }}
+          transition={isPerformanceMode ? { duration: 0 } : { duration: 0.2 }}
           className={`h-full ${currentView !== 'pos' ? 'overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar' : ''}`}
         >
           {renderView()}
