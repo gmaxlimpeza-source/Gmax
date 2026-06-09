@@ -151,9 +151,9 @@ export function Inventory() {
           {filteredProducts.length === 0 && (
             <div className="py-24 text-center">
                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-blue-200" />
+                  <Search className="w-8 h-8 text-blue-400" />
                </div>
-              <p className="text-[11px] font-black uppercase tracking-[0.4em] text-blue-900/20">Nenhum produto encontrado</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">Nenhum produto encontrado</p>
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ export function Inventory() {
               className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-[70] p-8 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-black uppercase tracking-widest text-blue-900/30">
+                <h3 className="text-xl font-black uppercase tracking-widest text-slate-800">
                   {editingProduct ? 'Editar Produto' : 'Novo Produto'}
                 </h3>
                 <button onClick={() => setIsFormOpen(false)} className="p-2 hover:bg-blue-50 text-blue-300 rounded-full">
@@ -258,7 +258,7 @@ export function Inventory() {
 function InputGroup({ label, ...props }: any) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 ml-2">{label}</label>
       <input 
         {...props}
         className="w-full p-4 bg-blue-50/30 rounded-2xl border-2 border-transparent focus:bg-white focus:border-blue-600 outline-none transition-all font-black text-xs uppercase"

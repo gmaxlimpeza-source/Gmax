@@ -549,7 +549,7 @@ export function POS({ user }: { user?: any }) {
                             >
                               <div className="text-left pr-2">
                                 <p className="font-black text-xs uppercase text-gray-900 line-clamp-1">{p.name}</p>
-                                <p className="text-[9px] text-gray-400 font-mono tracking-tighter">{p.barcode}</p>
+                                <p className="text-[9px] text-gray-600 font-mono tracking-tighter">{p.barcode}</p>
                               </div>
                               <span className="font-black text-sm text-blue-600 shrink-0">R$ {p.price.toFixed(2)}</span>
                             </button>
@@ -564,7 +564,7 @@ export function POS({ user }: { user?: any }) {
               <div className="mt-6 lg:mt-auto space-y-4 pt-4 border-t border-gray-100 lg:border-t-0 lg:pt-0">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 tracking-widest px-1 uppercase">Quantidade</label>
+                    <label className="text-[10px] font-black text-slate-600 tracking-widest px-1 uppercase">Quantidade</label>
                     <input 
                       ref={qtyInputRef}
                       type="number" 
@@ -582,7 +582,7 @@ export function POS({ user }: { user?: any }) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-red-400 tracking-widest px-1 uppercase">Desconto (%)</label>
+                    <label className="text-[10px] font-black text-red-700 tracking-widest px-1 uppercase">Desconto (%)</label>
                     <input 
                       type="number" 
                       className="w-full p-4 bg-red-50/30 rounded-2xl border-2 border-transparent focus:border-red-600 focus:bg-white outline-none font-black text-xl text-center text-red-600"
@@ -666,10 +666,10 @@ export function POS({ user }: { user?: any }) {
                   <div className="flex items-center gap-4">
                     <span className="text-[9px] font-black opacity-40 uppercase tracking-[0.2em] text-blue-200">S-total: R$ {subtotal.toFixed(2)}</span>
                     <div className="h-2.5 w-[1px] bg-white/10" />
-                    <span className="text-[9px] font-black text-red-400 uppercase tracking-[0.2em]">Desconto: {discount}%</span>
+                    <span className="text-[9px] font-black text-rose-300 uppercase tracking-[0.2em]">Desconto: {discount}%</span>
                   </div>
                   <div className="flex items-baseline gap-2">
-                     <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">VALOR FINAL A RECEBER</span>
+                     <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.3em]">VALOR FINAL A RECEBER</span>
                   </div>
                </div>
                <div className="flex items-baseline gap-1 relative z-10">
@@ -811,13 +811,13 @@ export function POS({ user }: { user?: any }) {
                               <p className="text-[10px] text-gray-550 font-bold uppercase tracking-wider">
                                 {sale.customerName || 'CONSUMIDOR PADRÃO'}
                               </p>
-                              <p className="text-[9px] text-gray-400 font-medium whitespace-nowrap">
+                              <p className="text-[9px] text-gray-600 font-semibold whitespace-nowrap">
                                 {sale.timestamp ? (sale.timestamp.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp)).toLocaleString('pt-BR') : ''}
                               </p>
                            </div>
                            <div className="text-right">
                               <p className="font-black text-gray-950 text-base">R$ {sale.total.toFixed(2)}</p>
-                              <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Sincronizado</span>
+                              <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest font-bold">Sincronizado</span>
                            </div>
                         </div>
                       ))}
@@ -904,13 +904,13 @@ export function POS({ user }: { user?: any }) {
               <h2 className="text-2xl font-black italic mb-2 text-[#141414] flex items-center gap-2">
                 <Percent className="text-red-600" /> DESCONTO NO ITEM
               </h2>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">
+              <p className="text-[10px] font-black text-gray-650 uppercase tracking-widest mb-6">
                 Aplicando em: {cart[selectedDiscountIndex]?.name}
               </p>
               
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Valor do Desconto (R$)</label>
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Valor do Desconto (R$)</label>
                   <input 
                     type="number" 
                     placeholder="0.00"
@@ -1256,7 +1256,7 @@ export function POS({ user }: { user?: any }) {
                         <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/50 flex justify-between items-center">
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-amber-800/60 uppercase tracking-widest">Valor do Débito em Aberto</span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Pendência no cadastro do cliente</span>
+                            <span className="text-[10px] font-bold text-amber-800/85 uppercase mt-0.5">Pendência no cadastro do cliente</span>
                           </div>
                           <span className="text-2xl font-black text-amber-600">R$ {remaining.toFixed(2)}</span>
                         </div>
@@ -1347,7 +1347,7 @@ export function POS({ user }: { user?: any }) {
               
               <div>
                 <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">TROCO A DEVOLVER</h2>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-black text-gray-650 uppercase tracking-widest mt-1">
                   ENTREGUE O VALOR CORRETO AO CLIENTE
                 </p>
               </div>
@@ -1372,8 +1372,8 @@ export function POS({ user }: { user?: any }) {
                 >
                   Confirmar e Fechar [ENTER]
                 </button>
-                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
-                  Ou tecle <span className="font-extrabold text-gray-600">ESC</span> / <span className="font-extrabold text-gray-600">BACKSPACE</span> para fechar
+                <p className="text-[9px] text-gray-600 font-extrabold uppercase tracking-widest">
+                  Ou tecle <span className="font-extrabold text-gray-900 bg-gray-100 border border-gray-250 px-1 py-0.5 rounded">ESC</span> / <span className="font-extrabold text-gray-900 bg-gray-100 border border-gray-250 px-1 py-0.5 rounded">BACKSPACE</span> para fechar
                 </p>
               </div>
             </motion.div>
