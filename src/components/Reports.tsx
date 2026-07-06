@@ -18,12 +18,14 @@ import {
   Download,
   Trash2,
   AlertTriangle,
-  CalendarDays
+  CalendarDays,
+  Printer
 } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { Sale, PaymentMethod } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePerformanceMode } from '../hooks/usePerformanceMode';
+import { ReceiptModal } from './ReceiptModal';
 
 export function Reports() {
   const { isPerformanceMode } = usePerformanceMode();
@@ -31,6 +33,7 @@ export function Reports() {
   const [filter, setFilter] = useState<'today' | 'month' | 'all'>('today');
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
+  const [selectedSaleForReceipt, setSelectedSaleForReceipt] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
     const parseTS = (timestamp: any): Date => {
@@ -269,6 +272,14 @@ export function Reports() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 self-start md:self-auto">
+                  <button 
+                    onClick={() => setSelectedSaleForReceipt(sale)}
+                    className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:text-blue-850 transition-all uppercase tracking-widest bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-xl border border-transparent hover:border-blue-200 shrink-0"
+                    title="Imprimir Comprovante Simples"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Comprovante
+                  </button>
                   {sale.isVoided ? (
                     <div className="flex items-center gap-2 text-[10px] font-black text-red-600 border border-red-200 bg-red-100/40 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none">
                       Venda Estornada {sale.voidedAt && `• ${(typeof sale.voidedAt.toDate === 'function' ? sale.voidedAt.toDate() : (sale.voidedAt.seconds ? new Date(sale.voidedAt.seconds * 1000) : new Date(sale.voidedAt))).toLocaleDateString('pt-BR')}`}
@@ -443,6 +454,11 @@ export function Reports() {
           </div>
         )}
       </AnimatePresence>
+
+      <ReceiptModal 
+        sale={selectedSaleForReceipt} 
+        onClose={() => setSelectedSaleForReceipt(null)}
+      />
     </div>
   );
 }

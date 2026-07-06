@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { usePerformanceMode } from '../hooks/usePerformanceMode';
+import { ReceiptModal } from './ReceiptModal';
 
 const playScannerBeep = () => {
   try {
@@ -92,6 +93,7 @@ export function POS({ user }: { user?: any }) {
   });
 
   const [changeAmountToShow, setChangeAmountToShow] = useState<number | null>(null);
+  const [completedSaleForReceipt, setCompletedSaleForReceipt] = useState<any | null>(null);
 
   const [multiplePayments, setMultiplePayments] = useState<Record<PaymentMethod, string>>({
     cash: '',
@@ -453,18 +455,31 @@ export function POS({ user }: { user?: any }) {
         extraData.payments = paymentsList;
       }
 
-      await createSale(cart, total, method, extraData);
+      const saleId = await createSale(cart, total, method, extraData);
+      
+      const completedSaleObj = {
+        id: saleId || 'N/A',
+        items: [...cart],
+        total,
+        paymentMethod: method,
+        timestamp: Timestamp.now(),
+        customerName,
+        customerCpf,
+        onAccountPaidAmount: extraData.onAccountPaidAmount,
+        onAccountOutstandingAmount: extraData.onAccountOutstandingAmount,
+        onAccountDueDate: extraData.onAccountDueDate,
+        payments: extraData.payments,
+      };
+
       setCart([]);
       setDiscount(0);
       setIsPaymentModalOpen(false);
+      setCompletedSaleForReceipt(completedSaleObj);
       
       if ((method === 'cash' || method === 'multiple') && change > 0) {
         setChangeAmountToShow(change);
       } else {
         showToast('Venda concluída com sucesso!', 'success');
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 50);
       }
     } catch (error) {
       showToast('Falha crítica ao gravar venda');
@@ -1683,6 +1698,15 @@ export function POS({ user }: { user?: any }) {
           </motion.div>
         )}
       </AnimatePresence>
+      <ReceiptModal 
+        sale={completedSaleForReceipt} 
+        onClose={() => {
+          setCompletedSaleForReceipt(null);
+          setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 50);
+        }}
+      />
     </div>
   );
 }

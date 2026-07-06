@@ -74,7 +74,7 @@ export function useSales() {
       onAccountStatus?: 'pending' | 'paid';
       payments?: SalePayment[];
     }
-  ) => {
+  ): Promise<string | undefined> => {
     try {
       const batch = writeBatch(db);
       
@@ -97,6 +97,7 @@ export function useSales() {
       });
 
       await batch.commit();
+      return saleRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'sales');
     }
