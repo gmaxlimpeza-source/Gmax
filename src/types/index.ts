@@ -20,11 +20,17 @@ export interface SaleItem {
 
 export type PaymentMethod = 'cash' | 'card' | 'pix' | 'on_account';
 
+export interface SalePayment {
+  method: PaymentMethod;
+  amount: number;
+}
+
 export interface Sale {
   id: string;
   items: SaleItem[];
   total: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | 'multiple';
+  payments?: SalePayment[];
   timestamp: Timestamp;
   isVoided?: boolean;
   voidedAt?: Timestamp;

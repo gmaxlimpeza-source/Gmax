@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Sale, SaleItem, PaymentMethod } from '../types';
+import { Sale, SaleItem, PaymentMethod, SalePayment } from '../types';
 
 export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -64,7 +64,7 @@ export function useSales() {
   const createSale = async (
     items: SaleItem[], 
     total: number, 
-    paymentMethod: PaymentMethod,
+    paymentMethod: PaymentMethod | 'multiple',
     extraData?: {
       customerName?: string;
       customerCpf?: string;
@@ -72,6 +72,7 @@ export function useSales() {
       onAccountOutstandingAmount?: number;
       onAccountDueDate?: Timestamp;
       onAccountStatus?: 'pending' | 'paid';
+      payments?: SalePayment[];
     }
   ) => {
     try {

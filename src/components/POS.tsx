@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
-import { Product, SaleItem, PaymentMethod } from '../types';
+import { Product, SaleItem, PaymentMethod, SalePayment } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 import { Timestamp } from 'firebase/firestore';
@@ -59,6 +59,10 @@ export function POS({ user }: { user?: any }) {
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [quantity, setQuantity] = useState<number | ''>(1);
   const [discount, setDiscount] = useState(0);
+
+  const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
+  const total = useMemo(() => subtotal * (1 - (discount / 100)), [subtotal, discount]);
+
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -78,7 +82,7 @@ export function POS({ user }: { user?: any }) {
   const qtyInputRef = useRef<HTMLInputElement>(null);
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | 'multiple' | null>(null);
   const [cashAmountReceived, setCashAmountReceived] = useState('');
   const [onAccountPaidAmount, setOnAccountPaidAmount] = useState('');
   const [onAccountDueDate, setOnAccountDueDate] = useState(() => {
@@ -88,6 +92,38 @@ export function POS({ user }: { user?: any }) {
   });
 
   const [changeAmountToShow, setChangeAmountToShow] = useState<number | null>(null);
+
+  const [multiplePayments, setMultiplePayments] = useState<Record<PaymentMethod, string>>({
+    cash: '',
+    card: '',
+    pix: '',
+    on_account: ''
+  });
+
+  const totalPaidMultiple = useMemo(() => {
+    const cash = parseFloat(multiplePayments.cash) || 0;
+    const card = parseFloat(multiplePayments.card) || 0;
+    const pix = parseFloat(multiplePayments.pix) || 0;
+    const onAccount = parseFloat(multiplePayments.on_account) || 0;
+    return cash + card + pix + onAccount;
+  }, [multiplePayments]);
+
+  const remainingMultiple = useMemo(() => {
+    return Math.max(0, total - totalPaidMultiple);
+  }, [total, totalPaidMultiple]);
+
+  const changeMultiple = useMemo(() => {
+    if (totalPaidMultiple > total) {
+      const cash = parseFloat(multiplePayments.cash) || 0;
+      if (cash > 0) {
+        const otherPayments = totalPaidMultiple - cash;
+        if (otherPayments < total) {
+          return totalPaidMultiple - total;
+        }
+      }
+    }
+    return 0;
+  }, [total, totalPaidMultiple, multiplePayments]);
 
   // Clock
   useEffect(() => {
@@ -100,6 +136,12 @@ export function POS({ user }: { user?: any }) {
       setSelectedPaymentMethod('cash');
       setCashAmountReceived('');
       setOnAccountPaidAmount('');
+      setMultiplePayments({
+        cash: '',
+        card: '',
+        pix: '',
+        on_account: ''
+      });
       const d = new Date();
       d.setDate(d.getDate() + 30);
       setOnAccountDueDate(d.toISOString().split('T')[0]);
@@ -287,7 +329,7 @@ export function POS({ user }: { user?: any }) {
 
     window.addEventListener('keydown', handleGlobalKeys);
     return () => window.removeEventListener('keydown', handleGlobalKeys);
-  }, [products, quantity, cart, isProcessing, isPaymentModalOpen, selectedPaymentMethod, changeAmountToShow]);
+  }, [products, quantity, cart, isProcessing, isPaymentModalOpen, selectedPaymentMethod, changeAmountToShow, multiplePayments, totalPaidMultiple, changeMultiple]);
 
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToast({ message, type });
@@ -334,9 +376,6 @@ export function POS({ user }: { user?: any }) {
     setSearchTerm('');
   };
 
-  const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
-  const total = useMemo(() => subtotal * (1 - (discount / 100)), [subtotal, discount]);
-
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return [];
     return products.filter(p => 
@@ -345,7 +384,7 @@ export function POS({ user }: { user?: any }) {
     ).slice(0, 3);
   }, [searchTerm, products]);
 
-  const handleCheckout = async (method: PaymentMethod) => {
+  const handleCheckout = async (method: PaymentMethod | 'multiple') => {
     if (cart.length === 0) return;
 
     let change = 0;
@@ -356,6 +395,17 @@ export function POS({ user }: { user?: any }) {
         return;
       }
       change = received - total;
+    } else if (method === 'multiple') {
+      if (totalPaidMultiple < total) {
+        showToast('Valor total recebido é insuficiente', 'error');
+        return;
+      }
+      const onAccountAmount = parseFloat(multiplePayments.on_account) || 0;
+      if (onAccountAmount > 0 && (!customerName || customerName === 'CONSUMIDOR PADRÃO')) {
+        showToast('Identifique o cliente para venda a prazo [F6]', 'error');
+        return;
+      }
+      change = changeMultiple;
     }
 
     if (method === 'on_account' && (!customerName || customerName === 'CONSUMIDOR PADRÃO')) {
@@ -380,6 +430,27 @@ export function POS({ user }: { user?: any }) {
         extraData.onAccountOutstandingAmount = outstandingAmount;
         extraData.onAccountDueDate = Timestamp.fromDate(new Date(onAccountDueDate + 'T12:00:00'));
         extraData.onAccountStatus = 'pending';
+      } else if (method === 'multiple') {
+        const paymentsList: SalePayment[] = [];
+        if (parseFloat(multiplePayments.cash) || 0) {
+          paymentsList.push({ method: 'cash', amount: parseFloat(multiplePayments.cash) || 0 });
+        }
+        if (parseFloat(multiplePayments.card) || 0) {
+          paymentsList.push({ method: 'card', amount: parseFloat(multiplePayments.card) || 0 });
+        }
+        if (parseFloat(multiplePayments.pix) || 0) {
+          paymentsList.push({ method: 'pix', amount: parseFloat(multiplePayments.pix) || 0 });
+        }
+        const onAccountAmount = parseFloat(multiplePayments.on_account) || 0;
+        if (onAccountAmount > 0) {
+          paymentsList.push({ method: 'on_account', amount: onAccountAmount });
+          
+          extraData.onAccountPaidAmount = totalPaidMultiple - onAccountAmount;
+          extraData.onAccountOutstandingAmount = onAccountAmount;
+          extraData.onAccountDueDate = Timestamp.fromDate(new Date(onAccountDueDate + 'T12:00:00'));
+          extraData.onAccountStatus = 'pending';
+        }
+        extraData.payments = paymentsList;
       }
 
       await createSale(cart, total, method, extraData);
@@ -387,7 +458,7 @@ export function POS({ user }: { user?: any }) {
       setDiscount(0);
       setIsPaymentModalOpen(false);
       
-      if (method === 'cash' && change > 0) {
+      if ((method === 'cash' || method === 'multiple') && change > 0) {
         setChangeAmountToShow(change);
       } else {
         showToast('Venda concluída com sucesso!', 'success');
@@ -1009,8 +1080,8 @@ export function POS({ user }: { user?: any }) {
                 </span>
               </div>
 
-              {/* Four selection options */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Five selection options */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {/* cash - Dinheiro */}
                 <button
                   type="button"
@@ -1093,6 +1164,28 @@ export function POS({ user }: { user?: any }) {
                   <div className="text-center">
                     <p className="font-black text-xs uppercase leading-none">A Prazo</p>
                     <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Atalho [F9]</p>
+                  </div>
+                </button>
+
+                {/* multiple - Misto */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPaymentMethod('multiple');
+                    setCashAmountReceived('');
+                  }}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all duration-200 relative col-span-2 md:col-span-1 ${
+                    selectedPaymentMethod === 'multiple'
+                      ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-lg shadow-purple-500/15'
+                      : 'bg-white border-blue-105 hover:border-blue-300 hover:bg-blue-50/20 text-blue-900/60'
+                  }`}
+                >
+                  <div className={`p-3 rounded-lg ${selectedPaymentMethod === 'multiple' ? 'bg-purple-500 text-white' : 'bg-blue-50 text-blue-500'}`}>
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-black text-xs uppercase leading-none">Misto</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Múltiplo</p>
                   </div>
                 </button>
               </div>
@@ -1296,6 +1389,212 @@ export function POS({ user }: { user?: any }) {
                     <p className="text-[9px] text-center text-amber-800/40 font-black uppercase tracking-widest leading-none">
                       Pressione <span className="text-amber-600 font-extrabold">ENTER</span> para concluir a venda a Prazo / em Aberto
                     </p>
+                  </div>
+                )}
+
+                {selectedPaymentMethod === 'multiple' && (
+                  <div className="space-y-4">
+                    {/* Header of the multiple payment panel */}
+                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 flex justify-between items-center mb-1">
+                      <div className="text-left">
+                        <span className="text-[10px] font-black text-purple-900 uppercase tracking-widest block">Pagamento Misto</span>
+                        <span className="text-[9px] text-gray-500 font-bold uppercase">Preencha os valores para cada forma de pagamento</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-black text-purple-900/40 uppercase tracking-widest block">Falta Pagar</span>
+                        <span className={`text-xl font-black ${remainingMultiple > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          R$ {remainingMultiple.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Inputs for the 4 payment methods */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Cash Input */}
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100/50 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                            <Banknote className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase text-gray-700">Dinheiro</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            className="w-20 p-1.5 bg-gray-50 border border-blue-100 rounded-lg outline-none font-black text-right text-xs text-emerald-600 focus:border-emerald-500"
+                            value={multiplePayments.cash}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/,/g, '.');
+                              if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                                setMultiplePayments(prev => ({ ...prev, cash: val }));
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentOtherPaid = totalPaidMultiple - (parseFloat(multiplePayments.cash) || 0);
+                              const needed = Math.max(0, total - currentOtherPaid);
+                              setMultiplePayments(prev => ({ ...prev, cash: needed > 0 ? needed.toFixed(2) : '' }));
+                            }}
+                            className="px-1.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[8px] font-black rounded uppercase"
+                            title="Preencher o saldo restante nesta forma de pagamento"
+                          >
+                            Resto
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card Input */}
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100/50 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                            <CreditCard className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase text-gray-700">Cartão</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            className="w-20 p-1.5 bg-gray-50 border border-blue-100 rounded-lg outline-none font-black text-right text-xs text-blue-600 focus:border-blue-500"
+                            value={multiplePayments.card}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/,/g, '.');
+                              if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                                setMultiplePayments(prev => ({ ...prev, card: val }));
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentOtherPaid = totalPaidMultiple - (parseFloat(multiplePayments.card) || 0);
+                              const needed = Math.max(0, total - currentOtherPaid);
+                              setMultiplePayments(prev => ({ ...prev, card: needed > 0 ? needed.toFixed(2) : '' }));
+                            }}
+                            className="px-1.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[8px] font-black rounded uppercase"
+                            title="Preencher o saldo restante nesta forma de pagamento"
+                          >
+                            Resto
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Pix Input */}
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100/50 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="p-1.5 bg-teal-50 text-teal-600 rounded-lg">
+                            <QrCode className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase text-gray-700">Pix</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            className="w-20 p-1.5 bg-gray-50 border border-blue-100 rounded-lg outline-none font-black text-right text-xs text-teal-600 focus:border-teal-500"
+                            value={multiplePayments.pix}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/,/g, '.');
+                              if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                                setMultiplePayments(prev => ({ ...prev, pix: val }));
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentOtherPaid = totalPaidMultiple - (parseFloat(multiplePayments.pix) || 0);
+                              const needed = Math.max(0, total - currentOtherPaid);
+                              setMultiplePayments(prev => ({ ...prev, pix: needed > 0 ? needed.toFixed(2) : '' }));
+                            }}
+                            className="px-1.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 text-[8px] font-black rounded uppercase"
+                            title="Preencher o saldo restante nesta forma de pagamento"
+                          >
+                            Resto
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* On Account (A Prazo) Input */}
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100/50 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="p-1.5 bg-amber-50 text-amber-700 rounded-lg">
+                            <Clock className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase text-gray-700">A Prazo</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            className="w-20 p-1.5 bg-gray-50 border border-blue-100 rounded-lg outline-none font-black text-right text-xs text-amber-700 focus:border-amber-500"
+                            value={multiplePayments.on_account}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/,/g, '.');
+                              if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                                setMultiplePayments(prev => ({ ...prev, on_account: val }));
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentOtherPaid = totalPaidMultiple - (parseFloat(multiplePayments.on_account) || 0);
+                              const needed = Math.max(0, total - currentOtherPaid);
+                              setMultiplePayments(prev => ({ ...prev, on_account: needed > 0 ? needed.toFixed(2) : '' }));
+                            }}
+                            className="px-1.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase"
+                            title="Preencher o saldo restante nesta forma de pagamento"
+                          >
+                            Resto
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* A Prazo Extra Inputs if multiple payments on_account is greater than 0 */}
+                    {(parseFloat(multiplePayments.on_account) || 0) > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase text-amber-800 tracking-widest block">Vencimento</span>
+                          <input
+                            type="date"
+                            className="w-full p-1.5 bg-white rounded-lg border border-amber-250 outline-none font-bold text-xs text-center text-amber-800 shadow-sm"
+                            value={onAccountDueDate}
+                            onChange={(e) => setOnAccountDueDate(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase text-blue-900 tracking-widest block">Cliente do Débito</span>
+                          <input
+                            type="text"
+                            placeholder="NOME DO CLIENTE"
+                            className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg outline-none font-black text-xs uppercase shadow-sm"
+                            value={customerName === 'CONSUMIDOR PADRÃO' ? '' : customerName}
+                            onChange={(e) => setCustomerName(e.target.value.toUpperCase() || 'CONSUMIDOR PADRÃO')}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary for multiple payment mode */}
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between pt-1 border-t border-blue-50 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                      <div className="flex gap-4">
+                        <span>Total Pago: <strong className="text-gray-900">R$ {totalPaidMultiple.toFixed(2)}</strong></span>
+                        {changeMultiple > 0 && <span>Troco: <strong className="text-emerald-600">R$ {changeMultiple.toFixed(2)}</strong></span>}
+                      </div>
+                      
+                      <p className="text-[8px] text-purple-600 font-black uppercase tracking-widest">
+                        Pressione <span className="text-purple-700 font-extrabold">ENTER</span> para fechar a venda mista
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

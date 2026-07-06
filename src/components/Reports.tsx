@@ -83,8 +83,16 @@ export function Reports() {
   const pieData = useMemo(() => {
     const data: Record<PaymentMethod, number> = { cash: 0, card: 0, pix: 0, on_account: 0 };
     activeSales.forEach(s => {
-      const method = s.paymentMethod || 'cash';
-      data[method] = (data[method] || 0) + s.total;
+      if (s.paymentMethod === 'multiple' && s.payments && s.payments.length > 0) {
+        s.payments.forEach(p => {
+          if (p.method in data) {
+            data[p.method] += p.amount;
+          }
+        });
+      } else {
+        const method = s.paymentMethod === 'multiple' ? 'cash' : (s.paymentMethod || 'cash');
+        data[method] = (data[method] || 0) + s.total;
+      }
     });
     return [
       { name: 'Dinheiro', value: data.cash ?? 0, color: '#F97316' },
@@ -205,6 +213,7 @@ export function Reports() {
                       : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
                         sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
                         sale.paymentMethod === 'on_account' ? 'bg-amber-50 text-amber-700' :
+                        sale.paymentMethod === 'multiple' ? 'bg-purple-50 text-purple-700' :
                         'bg-orange-50 text-orange-600'
                   }`}>
                     <CalendarDays className="w-6 h-6" />
@@ -218,9 +227,12 @@ export function Reports() {
                         sale.paymentMethod === 'on_account' ? 'bg-amber-50 border-amber-200 text-amber-800' :
                         sale.paymentMethod === 'pix' ? 'bg-teal-50 border-teal-200 text-teal-850' :
                         sale.paymentMethod === 'card' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                        sale.paymentMethod === 'multiple' ? 'bg-purple-550 border-purple-200 text-purple-800' :
                         'bg-orange-50 border-orange-200 text-orange-800'
                       }`}>
-                        {sale.paymentMethod === 'on_account' ? 'A Prazo / Aberto' : sale.paymentMethod}
+                        {sale.paymentMethod === 'on_account' ? 'A Prazo / Aberto' : 
+                         sale.paymentMethod === 'multiple' ? 'Misto' : 
+                         sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod}
                       </span>
                       {sale.isVoided && (
                         <span className="text-[9px] font-black bg-red-100 border border-red-200 text-red-700 px-2 py-1 rounded-full uppercase tracking-widest">
@@ -233,6 +245,16 @@ export function Reports() {
                       {sale.customerName && ` • Cliente: ${sale.customerName}`}
                       {sale.customerCpf && ` (${sale.customerCpf})`}
                     </p>
+                    {sale.paymentMethod === 'multiple' && sale.payments && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5 items-center">
+                        <span className="text-[8px] font-black uppercase text-purple-900/60 tracking-wider">Misto:</span>
+                        {sale.payments.map((p, idx) => (
+                          <span key={idx} className="text-[8px] font-black uppercase border border-purple-100 bg-purple-50/50 text-purple-800 px-2 py-0.5 rounded-full">
+                            {p.method === 'cash' ? 'Dinheiro' : p.method === 'card' ? 'Cartão' : p.method === 'pix' ? 'Pix' : 'A Prazo'}: R$ {p.amount.toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {sale.items.map((item, idx) => (
                         <span key={idx} className={`text-[9px] font-extrabold border px-3 py-1 rounded-full uppercase ${
@@ -271,7 +293,7 @@ export function Reports() {
               </div>
 
               {/* Outstanding payment details Settlement section */}
-              {!sale.isVoided && sale.paymentMethod === 'on_account' && (
+              {!sale.isVoided && (sale.paymentMethod === 'on_account' || (sale.paymentMethod === 'multiple' && (sale.onAccountOutstandingAmount ?? 0) > 0)) && (
                 <div className="mt-2 p-4 bg-amber-50/40 rounded-2xl border border-amber-200/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="text-xs">
                     <span className="font-extrabold text-amber-800 uppercase text-[9.5px] tracking-widest block">Controle de Venda a Prazo</span>
