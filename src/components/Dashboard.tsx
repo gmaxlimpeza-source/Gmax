@@ -50,7 +50,7 @@ export function Dashboard() {
              saleDate.getFullYear() === now.getFullYear();
     });
 
-    const revenue = todaySales.reduce((acc, s) => acc + s.total, 0);
+    const revenue = Math.round(todaySales.reduce((acc, s) => acc + s.total, 0) * 100) / 100;
     const lowStockCount = products.filter(p => p.stock <= p.minStock).length;
 
     // Prepare chart data (last 7 days)
@@ -63,7 +63,7 @@ export function Dashboard() {
       });
       return {
         date: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        value: daySales.reduce((acc, s) => acc + s.total, 0)
+        value: Math.round(daySales.reduce((acc, s) => acc + s.total, 0) * 100) / 100
       };
     });
 
@@ -137,6 +137,7 @@ export function Dashboard() {
                   tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} 
                 />
                 <Tooltip 
+                  formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
                   contentStyle={{ 
                     borderRadius: '16px', 
                     border: 'none', 

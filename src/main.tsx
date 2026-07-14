@@ -19,14 +19,10 @@ if ('serviceWorker' in navigator) {
   } else {
     // Em desenvolvimento, desregistra qualquer Service Worker ativo para evitar conflitos de cache e tela branca
     navigator.serviceWorker.getRegistrations().then((registrations) => {
-      if (registrations.length > 0) {
-        for (const registration of registrations) {
-          registration.unregister().then(() => {
-            console.log('Service Worker antigo desativado para evitar cache em ambiente de desenvolvimento.');
-          });
-        }
-        // Recarrega uma vez para garantir que o controle do cache foi liberado
-        window.location.reload();
+      for (const registration of registrations) {
+        registration.unregister().then(() => {
+          console.log('Service Worker antigo desativado para evitar cache em ambiente de desenvolvimento.');
+        });
       }
     });
   }

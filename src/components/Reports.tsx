@@ -27,6 +27,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { usePerformanceMode } from '../hooks/usePerformanceMode';
 import { ReceiptModal } from './ReceiptModal';
 
+const parseTS = (timestamp: any): Date => {
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+  if (timestamp instanceof Date) return timestamp;
+  if (typeof timestamp === 'string') return new Date(timestamp);
+  if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+  return new Date();
+};
+
 export function Reports() {
   const { isPerformanceMode } = usePerformanceMode();
   const { sales, voidSale, loading, settleSale, deleteSale } = useSales();
@@ -36,15 +45,6 @@ export function Reports() {
   const [selectedSaleForReceipt, setSelectedSaleForReceipt] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
-    const parseTS = (timestamp: any): Date => {
-      if (!timestamp) return new Date();
-      if (typeof timestamp.toDate === 'function') return timestamp.toDate();
-      if (timestamp instanceof Date) return timestamp;
-      if (typeof timestamp === 'string') return new Date(timestamp);
-      if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-      return new Date();
-    };
-
     const now = new Date();
     return sales.filter(s => {
       const d = parseTS(s.timestamp);
@@ -66,22 +66,47 @@ export function Reports() {
   }, [filteredSales]);
 
   const chartData = useMemo(() => {
-    const parseTS = (timestamp: any): Date => {
-      if (!timestamp) return new Date();
-      if (typeof timestamp.toDate === 'function') return timestamp.toDate();
-      if (timestamp instanceof Date) return timestamp;
-      if (typeof timestamp === 'string') return new Date(timestamp);
-      if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-      return new Date();
-    };
-
-    const data: Record<string, number> = {};
-    activeSales.forEach(s => {
-      const day = parseTS(s.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      data[day] = (data[day] || 0) + s.total;
-    });
-    return Object.entries(data).map(([name, total]) => ({ name, total }));
-  }, [activeSales]);
+    if (filter === 'all') {
+      const data: Record<string, { total: number; sortKey: string; name: string }> = {};
+      activeSales.forEach(s => {
+        const d = parseTS(s.timestamp);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const sortKey = `${year}-${month}`;
+        const name = d.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+        if (!data[sortKey]) {
+          data[sortKey] = { total: 0, sortKey, name };
+        }
+        data[sortKey].total += s.total;
+      });
+      return Object.values(data)
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+        .map(item => ({
+          name: item.name,
+          total: Math.round(item.total * 100) / 100
+        }));
+    } else {
+      const data: Record<string, { total: number; sortKey: string; name: string }> = {};
+      activeSales.forEach(s => {
+        const d = parseTS(s.timestamp);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const sortKey = `${year}-${month}-${day}`;
+        const name = `${day}/${month}`;
+        if (!data[sortKey]) {
+          data[sortKey] = { total: 0, sortKey, name };
+        }
+        data[sortKey].total += s.total;
+      });
+      return Object.values(data)
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+        .map(item => ({
+          name: item.name,
+          total: Math.round(item.total * 100) / 100
+        }));
+    }
+  }, [activeSales, filter]);
 
   const pieData = useMemo(() => {
     const data: Record<PaymentMethod, number> = { cash: 0, card: 0, pix: 0, on_account: 0 };
@@ -112,6 +137,119 @@ export function Reports() {
     }
   };
 
+  const handleExportCSV = () => {
+    const formatTS = (timestamp: any): string => {
+      const d = parseTS(timestamp);
+      return d.toLocaleString('pt-BR');
+    };
+
+    const formatTSDate = (timestamp: any): string => {
+      const d = parseTS(timestamp);
+      return d.toLocaleDateString('pt-BR');
+    };
+
+    const getPaymentMethodLabel = (method: string) => {
+      switch (method) {
+        case 'cash': return 'Dinheiro';
+        case 'card': return 'Cartão';
+        case 'pix': return 'Pix';
+        case 'on_account': return 'A Prazo / Fiado';
+        case 'multiple': return 'Misto';
+        default: return method;
+      }
+    };
+
+    const headers = [
+      'ID da Venda',
+      'Data/Hora',
+      'Cliente',
+      'CPF',
+      'Total (R$)',
+      'Forma de Pagamento',
+      'Detalhes Pagamento Misto',
+      'Status',
+      'Itens',
+      'Status do Fiado',
+      'Saldo Devedor Fiado (R$)',
+      'Vencimento Fiado'
+    ];
+
+    const rows = filteredSales.map(sale => {
+      const id = sale.id;
+      const dateStr = formatTS(sale.timestamp);
+      const customer = sale.customerName || 'CONSUMIDOR PADRÃO';
+      const cpf = sale.customerCpf || '';
+      const total = sale.total.toFixed(2);
+      const pMethod = getPaymentMethodLabel(sale.paymentMethod);
+      
+      let multipleDetails = '';
+      if (sale.paymentMethod === 'multiple' && sale.payments) {
+        multipleDetails = sale.payments
+          .map(p => `${getPaymentMethodLabel(p.method)}: R$ ${p.amount.toFixed(2)}`)
+          .join(' | ');
+      }
+      
+      const status = sale.isVoided ? 'Estornada' : 'Ativa';
+      
+      const itemsStr = sale.items
+        .map(item => `${item.name} (${item.quantity}x R$ ${item.price.toFixed(2)})`)
+        .join(' ; ');
+        
+      const fiadoStatus = sale.paymentMethod === 'on_account' 
+        ? (sale.onAccountStatus === 'paid' ? 'Pago' : 'Pendente') 
+        : '-';
+        
+      const fiadoOutstanding = sale.paymentMethod === 'on_account'
+        ? (sale.onAccountOutstandingAmount ?? sale.total).toFixed(2)
+        : '-';
+        
+      const fiadoDueDate = (sale.paymentMethod === 'on_account' && sale.onAccountDueDate)
+        ? formatTSDate(sale.onAccountDueDate)
+        : '-';
+
+      return [
+        id,
+        dateStr,
+        customer,
+        cpf,
+        total,
+        pMethod,
+        multipleDetails,
+        status,
+        itemsStr,
+        fiadoStatus,
+        fiadoOutstanding,
+        fiadoDueDate
+      ];
+    });
+
+    // Use semicolon for Brazilian Excel compatibility
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => 
+        row.map(val => {
+          let cleanVal = String(val).replace(/"/g, '""');
+          if (cleanVal.includes(';') || cleanVal.includes('\n') || cleanVal.includes('"') || cleanVal.includes(',')) {
+            cleanVal = `"${cleanVal}"`;
+          }
+          return cleanVal;
+        }).join(';')
+      )
+    ].join('\n');
+
+    // Add BOM for UTF-8 compatibility with Excel in Portuguese
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateSuffix = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    link.setAttribute('download', `relatorio_vendas_${filter}_${dateSuffix}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) return <div>Carregando relatórios...</div>;
 
   return (
@@ -132,7 +270,10 @@ export function Reports() {
           ))}
         </div>
         <div className="flex gap-4">
-           <button className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-[#141414] transition-colors">
+           <button 
+             onClick={handleExportCSV}
+             className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors"
+           >
               <Download className="w-4 h-4" /> Exportar CSV
            </button>
         </div>
@@ -151,7 +292,11 @@ export function Reports() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }} 
+                  formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Total']}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
+                />
                 <Bar dataKey="total" fill="#3b82f6" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
