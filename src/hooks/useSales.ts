@@ -80,13 +80,23 @@ export function useSales() {
       
       // Create Sale record
       const saleRef = doc(collection(db, 'sales'));
-      batch.set(saleRef, {
+      
+      const saleData: Record<string, any> = {
         items,
         total,
         paymentMethod,
-        timestamp: Timestamp.now(),
-        ...extraData
-      });
+        timestamp: Timestamp.now()
+      };
+
+      if (extraData) {
+        Object.entries(extraData).forEach(([key, val]) => {
+          if (val !== undefined) {
+            saleData[key] = val;
+          }
+        });
+      }
+
+      batch.set(saleRef, saleData);
 
       // Update stock levels
       items.forEach((item) => {

@@ -26,7 +26,7 @@
           "description": "List of items sold"
         },
         "total": { "type": "number", "description": "Total sale amount" },
-        "paymentMethod": { "type": "string", "enum": ["cash", "card", "pix"] },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card", "pix", "on_account", "multiple"] },
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["items", "total", "paymentMethod", "timestamp"]

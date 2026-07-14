@@ -182,6 +182,7 @@ export function Dashboard() {
                       ? 'bg-red-100/60 text-red-600'
                       : sale.paymentMethod === 'pix' ? 'bg-teal-50 text-teal-600' :
                         sale.paymentMethod === 'card' ? 'bg-blue-50 text-blue-600' :
+                        sale.paymentMethod === 'multiple' ? 'bg-purple-50 text-purple-600' :
                         'bg-orange-50 text-orange-600'
                   }`}>
                     <Package className="w-4 h-4" />
@@ -191,7 +192,7 @@ export function Dashboard() {
                       R$ {sale.total.toFixed(2)}
                     </p>
                     <p className="text-[10px] text-gray-700 font-bold uppercase tracking-tighter">
-                      {sale.paymentMethod} {sale.isVoided && <span className="text-red-600 font-black">• ESTORNADA</span>} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      {sale.paymentMethod === 'cash' ? 'dinheiro' : sale.paymentMethod === 'card' ? 'cartão' : sale.paymentMethod === 'pix' ? 'pix' : sale.paymentMethod === 'multiple' ? 'misto' : 'a prazo'} {sale.isVoided && <span className="text-red-600 font-black">• ESTORNADA</span>} • {(sale.timestamp ? (typeof sale.timestamp.toDate === 'function' ? sale.timestamp.toDate() : (sale.timestamp.seconds ? new Date(sale.timestamp.seconds * 1000) : new Date(sale.timestamp))) : new Date()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>

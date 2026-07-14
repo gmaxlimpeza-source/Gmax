@@ -481,8 +481,21 @@ export function POS({ user }: { user?: any }) {
       } else {
         showToast('Venda concluída com sucesso!', 'success');
       }
-    } catch (error) {
-      showToast('Falha crítica ao gravar venda');
+    } catch (error: any) {
+      let msg = 'Falha crítica ao gravar venda';
+      if (error && error.message) {
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed && parsed.error) {
+            msg += `: ${parsed.error}`;
+          } else {
+            msg += `: ${error.message}`;
+          }
+        } catch {
+          msg += `: ${error.message}`;
+        }
+      }
+      showToast(msg, 'error');
       console.error(error);
     } finally {
       setIsProcessing(false);
@@ -890,7 +903,7 @@ export function POS({ user }: { user?: any }) {
                                   #{sale.id.substring(0, 6).toUpperCase()}
                                 </span>
                                 <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">
-                                  {sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod === 'card' ? 'Cartão' : sale.paymentMethod === 'pix' ? 'Pix' : 'A Prazo'}
+                                  {sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod === 'card' ? 'Cartão' : sale.paymentMethod === 'pix' ? 'Pix' : sale.paymentMethod === 'multiple' ? 'Misto' : 'A Prazo'}
                                 </span>
                                 {sale.isVoided && (
                                   <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-150 text-red-700 animate-pulse">
